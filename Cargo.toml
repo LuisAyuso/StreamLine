@@ -1,0 +1,12 @@
+[package]
+name = "streamline"
+version = "0.1.0"
+authors = ["LuisAyuso <luis.f.ayuso@gmail.com>"]
+
+[dependencies]
+streamline_core = { path = "./streamline_core" }
+streamline_glium_be = { path = "./streamline_glium_be" }
+glium = "0.17.0"
+glutin = "0.9.1"
+image = "0.14.0"
+find_folder = "0.3.0"
