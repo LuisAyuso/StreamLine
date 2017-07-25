@@ -7,7 +7,11 @@ extern crate find_folder;
 use streamline::StreamLineBackend;
 use streamline::AssetsMgrBuilder;
 use streamline::CmdQueue;
-use streamline::Line;
+
+// modifiers
+use streamline::Colorize;
+use streamline::Contour;
+
 use streamline::maths::vec2;
 
 use streamline_glium_be::GliumBackend;
@@ -48,20 +52,21 @@ fn main() {
         (mgr.build().expect("everithing allright"), sp1, sp2)
     };
 
-    loop_with_report(&mut |_dt: f64, _pc: &mut streamline::PerformaceCounters| {
+    loop_with_report(&mut |_dt: f64| {
 
         // ~~~~~~~~~~ drawing ~~~~~~~~~~~~~~~~
         let surface = be.surface();
         let mut q = CmdQueue::new(&mut be, surface, &ass);
         {
             q.clear(&[0.4f32, 0.2, 0.1, 1.0]);
-            q.line(vec2(0,0), vec2(10,10), 1);
+
+            q.line(vec2(0,0), vec2(10,10), 3);
             q.line(vec2(0,0), vec2(100,100), 1);
 
             for i in 0..5{
                 for j in 0..5{
-                    q.sprite(vec2(i * 300, j * 300), 0, sp1);
-                    q.sprite(vec2(i * 350, j * 320), 0, sp2);
+                    q.sprite(vec2(i * 300, j * 300), 1, sp1);
+                    q.sprite(vec2(i * 350, j * 320), 1, sp2);
                 }
             }
 
@@ -71,9 +76,14 @@ fn main() {
             for i in 0..W/10{
                 q.line(vec2(i*10, 0), vec2(i*10, H), 1);
             }
+
             q.line(vec2(10, 10), vec2(W-10, H-10), 0).with_color(1.0,0.0,0.0,1.0);
             q.line(vec2(10, H-10), vec2(W-10, 10), 0).with_color(0.0,1.0,0.0,1.0);
             q.rect(vec2(W/2,H/2), vec2(20, 20), 0);
+
+
+            q.rect(vec2(W/2 + 480,H/2 + 480), vec2(80, 80), 0).with_color(0.0,0.0,0.0,1.0);
+            q.rect(vec2(W/2 + 500,H/2 + 500), vec2(40, 40), 0).with_color(0.0,0.6,1.0,1.0).border();
         }
         q.done();
 

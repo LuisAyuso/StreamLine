@@ -71,7 +71,9 @@ impl LineDraw {
         let vertex_buffer = {
 
             let mut v = Vec::new();
-            for l in lines.iter() {
+            for instance in lines.iter() {
+
+                let &LineLayout(l) = instance;
 
                 let depth = l[0];
 

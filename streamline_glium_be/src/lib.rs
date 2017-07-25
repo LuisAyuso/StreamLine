@@ -149,12 +149,12 @@ mod tests {
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
             let mut surface = be.surface();
             surface.clear(&[0.5f32, 0.4, 0.8, 1.0]);
-            surface.draw_lines(&[[0.0, 0.0, 0.8, 0.8, 0.8, 1.0, 0.0, 0.0, 1.0f32]], 1);
-            surface.draw_lines(&[[0.0, -0.5, 0.4, 0.4, 0.4, 1.0, 1.0, 0.0, 1.0f32]], 2);
-            surface.draw_lines(&[[0.0, 100.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0f32]], 3);
-            surface.draw_lines(&[[0.0, -100.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0f32]], 4);
-            surface.draw_lines(&[[0.0, 0.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0f32]], 5);
-            surface.draw_lines(&[[0.0, 0.0, -100.0, 0.0, 0.0, 1.0, 0.5, 1.0, 1.0f32]], 6);
+            surface.draw_lines(&[LineLayout([0.0, 0.0, 0.8, 0.8, 0.8, 1.0, 0.0, 0.0, 1.0f32])], 1);
+            surface.draw_lines(&[LineLayout([0.0, -0.5, 0.4, 0.4, 0.4, 1.0, 1.0, 0.0, 1.0f32])], 2);
+            surface.draw_lines(&[LineLayout([0.0, 100.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0f32])], 3);
+            surface.draw_lines(&[LineLayout([0.0, -100.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0f32])], 4);
+            surface.draw_lines(&[LineLayout([0.0, 0.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0f32])], 5);
+            surface.draw_lines(&[LineLayout([0.0, 0.0, -100.0, 0.0, 0.0, 1.0, 0.5, 1.0, 1.0f32])], 6);
             surface.done();
 
             // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
@@ -190,14 +190,14 @@ mod tests {
         let (w, h) = ass.get_sprite_size(sp).unwrap();
 
         let mut stop = false;
-        countdown = 120;
+        countdown = 40;
         while !stop && countdown > 0 {
 
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
             let mut surface = be.surface();
             surface.clear(&[0.7f32, 0.8, 0.3, 1.0]);
-            surface.draw_sprites(&[[0.0, 0.0, 0.0, h, w, x, y, w, h]], 0);
-            surface.draw_sprites(&[[0.0, -0.5, -0.5, h*0.5, w*0.5, x, y, w, h]], 0);
+            surface.draw_sprites(&[SpriteLayout([0.0, 0.0, 0.0, h, w, x, y, w, h])], 0);
+            surface.draw_sprites(&[SpriteLayout([0.0, -0.5, -0.5, h*0.5, w*0.5, x, y, w, h])], 0);
             surface.done();
 
             // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~

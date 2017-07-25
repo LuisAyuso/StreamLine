@@ -98,7 +98,9 @@ impl QuadDraw {
         let vertex_buffer = {
 
             let mut v = Vec::new();
-            for l in quads.iter() {
+            for instance in quads.iter() {
+
+                let &SpriteLayout(l) = instance;
 
                 let depth = l[0];
 
@@ -176,7 +178,10 @@ impl QuadDraw {
         let vertex_buffer = {
 
             let mut v = Vec::new();
-            for l in quads.iter() {
+            for instance in quads.iter() {
+
+                let &RectLayout(l) = instance;
+
 
                 let depth = l[0];
 
