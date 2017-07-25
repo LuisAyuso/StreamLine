@@ -2,18 +2,19 @@
 #[macro_use]
 extern crate glium;
 extern crate glutin;
-extern crate streamline_core;
+extern crate streamline;
 extern crate image;
 extern crate find_folder;
 
 mod line;
 mod quad;
 
-use streamline_core::StreamLineBackend;
-use streamline_core::StreamLineBackendSurface;
-use streamline_core::SpriteLayout;
-use streamline_core::LineLayout;
-use streamline_core::Color;
+use streamline::StreamLineBackend;
+use streamline::StreamLineBackendSurface;
+use streamline::SpriteLayout;
+use streamline::LineLayout;
+use streamline::RectLayout;
+use streamline::Color;
 
 use line::LineDraw;
 use quad::QuadDraw;
@@ -88,20 +89,29 @@ pub struct GliumBackendSurface<F>
 impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
     where F: glium::backend::Facade
 {
+
     fn dimensions(&self) -> (f32, f32){ self.dimensions }
+
     fn clear(&mut self, color: &Color) {
         self.frame.clear_color(color[0], color[1], color[2], color[3]);
         self.frame.clear_depth(1.0f32);
 
     }
+
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32) {
         if let Some(tex) = self.tex_map.deref().get(&tex) {
-            self.quad_draw.draw_quads(&self.display, &mut self.frame, sprites, tex);
+            self.quad_draw.draw_tex_quads(&self.display, &mut self.frame, sprites, tex);
         }
     }
+
     fn draw_lines(&mut self, lines: &[LineLayout], width: u32) {
         self.line_draw.draw_lines(&self.display, &mut self.frame, lines, width);
     }
+
+    fn draw_rects(&mut self, rects: &[RectLayout]) {
+        self.quad_draw.draw_color_quads(&self.display, &mut self.frame, rects);
+    }
+
     fn done(self) {
         self.frame.finish().expect("could not finish frame");
     }
@@ -119,18 +129,18 @@ mod tests {
     use std::path::Path;
     use find_folder::Search;
 
-    use streamline_core::AssetsMgrBuilder;
+    use streamline::AssetsMgrBuilder;
 
     #[test]
     fn lines() {
 
         let mut events_loop = glutin::EventsLoop::new();
-        let window = glutin::WindowBuilder::new();
+        let window = glutin::WindowBuilder::new().with_dimensions(1024,1024);
         let context = glutin::ContextBuilder::new().with_depth_buffer(24);
         let display = glium::Display::new(window, context, &events_loop).unwrap();
 
         // our backend
-        let mut be = GliumBackend::new(display);
+        let mut be = GliumBackend::new(display,(1024, 1024));
 
         let mut stop = false;
         let mut countdown = 40;
@@ -139,12 +149,12 @@ mod tests {
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
             let mut surface = be.surface();
             surface.clear(&[0.5f32, 0.4, 0.8, 1.0]);
-            surface.draw_lines(&[[0.0, 0.8, 0.8, 0.8, 1.0, 0.0, 0.0, 1.0f32]], 1);
-            surface.draw_lines(&[[-0.5, 0.4, 0.4, 0.4, 1.0, 1.0, 0.0, 1.0f32]], 2);
-            surface.draw_lines(&[[100.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0f32]], 3);
-            surface.draw_lines(&[[-100.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0f32]], 4);
-            surface.draw_lines(&[[0.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0f32]], 5);
-            surface.draw_lines(&[[0.0, -100.0, 0.0, 0.0, 1.0, 0.5, 1.0, 1.0f32]], 6);
+            surface.draw_lines(&[[0.0, 0.0, 0.8, 0.8, 0.8, 1.0, 0.0, 0.0, 1.0f32]], 1);
+            surface.draw_lines(&[[0.0, -0.5, 0.4, 0.4, 0.4, 1.0, 1.0, 0.0, 1.0f32]], 2);
+            surface.draw_lines(&[[0.0, 100.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0f32]], 3);
+            surface.draw_lines(&[[0.0, -100.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0f32]], 4);
+            surface.draw_lines(&[[0.0, 0.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0f32]], 5);
+            surface.draw_lines(&[[0.0, 0.0, -100.0, 0.0, 0.0, 1.0, 0.5, 1.0, 1.0f32]], 6);
             surface.done();
 
             // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
@@ -186,8 +196,8 @@ mod tests {
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
             let mut surface = be.surface();
             surface.clear(&[0.7f32, 0.8, 0.3, 1.0]);
-            surface.draw_sprites(&[[0.0, 0.0, h, w, x, y, w, h]], 0);
-            surface.draw_sprites(&[[-0.5, -0.5, h*0.5, w*0.5, x, y, w, h]], 0);
+            surface.draw_sprites(&[[0.0, 0.0, 0.0, h, w, x, y, w, h]], 0);
+            surface.draw_sprites(&[[0.0, -0.5, -0.5, h*0.5, w*0.5, x, y, w, h]], 0);
             surface.done();
 
             // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~

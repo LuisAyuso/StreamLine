@@ -1,13 +1,13 @@
 use glium;
 use glium::Surface;
-use streamline_core::LineLayout;
+use streamline::LineLayout;
 
 use std::vec::Vec;
 
 
 #[derive(Debug, Copy, Clone)]
 struct Vertex {
-    position: [f32; 2],
+    position: [f32; 3],
     color: [f32; 4],
 }
 implement_vertex!(Vertex, position, color);
@@ -28,14 +28,14 @@ impl LineDraw {
             vertex: "
                 #version 140
 
-                in vec2 position;
+                in vec3 position;
                 in vec4 color;
 
                 out vec4 vs_color;
 
                 void main() {
 					vs_color = color;
-                    gl_Position = vec4(position, 0.0, 1.0);
+                    gl_Position = vec4(position, 1.0);
                 }
             ",
 
@@ -72,13 +72,26 @@ impl LineDraw {
 
             let mut v = Vec::new();
             for l in lines.iter() {
+
+                let depth = l[0];
+
+                let x1 = l[1];
+                let y1 = l[2];
+                let x2 = l[3];
+                let y2 = l[4];
+
+                let r = l[5];
+                let g = l[6];
+                let b = l[7];
+                let a = l[8];
+
                 v.push(Vertex {
-                    position: [l[0], l[1]],
-                    color: [l[4], l[5], l[6], l[7]],
+                    position: [x1, y1, depth],
+                    color: [r,g,b,a],
                 });
                 v.push(Vertex {
-                    position: [l[2], l[3]],
-                    color: [l[4], l[5], l[6], l[7]],
+                    position: [x2, y2, depth],
+                    color: [r,g,b,a],
                 });
             }
 
@@ -92,8 +105,8 @@ impl LineDraw {
 
         let params = glium::DrawParameters {
             depth: glium::Depth {
-                test: glium::DepthTest::IfLess,
-                write: false,
+                test: glium::DepthTest::IfLessOrEqual,
+                write: true,
                 ..Default::default()
             },
             polygon_mode: glium::PolygonMode::Line,

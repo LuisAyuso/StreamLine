@@ -1,17 +1,18 @@
 extern crate glium;
 extern crate glutin;
-extern crate streamline_core;
+extern crate streamline;
 extern crate streamline_glium_be;
 extern crate find_folder;
 
-use streamline_core::StreamLineBackend;
-use streamline_core::AssetsMgrBuilder;
-use streamline_core::CmdQueue;
-use streamline_core::pos;
+use streamline::StreamLineBackend;
+use streamline::AssetsMgrBuilder;
+use streamline::CmdQueue;
+use streamline::Line;
+use streamline::maths::vec2;
 
 use streamline_glium_be::GliumBackend;
 
-use streamline_core::tools::loop_with_report;
+use streamline::tools::loop_with_report;
 
 use std::path::Path;
 
@@ -29,42 +30,50 @@ fn main() {
     // our backend
     let mut be = GliumBackend::new(display, (W,H));
 
-    let mut file_location = find_folder::Search::Parents(3)
+    let file_location = find_folder::Search::Parents(3)
         .for_folder("assets")
         .expect("some assets folder must exist somewhere");
-    file_location.push(Path::new("rust-logo.png"));
+
+    let mut file1 = file_location.clone();
+    let mut file2 = file_location.clone();
+
+    file1.push(Path::new("rust-logo.png"));
+    file2.push(Path::new("rust-logo2.png"));
 
     // phase 1, load assets
-    let (ass, sp) = {
+    let (ass, sp1, sp2) = {
         let mut mgr = AssetsMgrBuilder::new(&mut be);
-        let sp = mgr.add_sprite(&file_location);
-        (mgr.build().expect("everithing allright"), sp)
+        let sp1 = mgr.add_sprite(&file1);
+        let sp2 = mgr.add_sprite(&file2);
+        (mgr.build().expect("everithing allright"), sp1, sp2)
     };
 
-    loop_with_report(&mut |_delta: f64, _pc: &mut streamline_core::PerformaceCounters| {
+    loop_with_report(&mut |_dt: f64, _pc: &mut streamline::PerformaceCounters| {
 
         // ~~~~~~~~~~ drawing ~~~~~~~~~~~~~~~~
         let surface = be.surface();
         let mut q = CmdQueue::new(&mut be, surface, &ass);
         {
             q.clear(&[0.4f32, 0.2, 0.1, 1.0]);
-            q.draw_line(pos(0,0), pos(10,10), 1);
-            q.draw_line(pos(0,0), pos(100,100), 1);
+            q.line(vec2(0,0), vec2(10,10), 1);
+            q.line(vec2(0,0), vec2(100,100), 1);
 
             for i in 0..5{
                 for j in 0..5{
-                    q.draw_sprite(pos(i * 300, j * 300), 0, sp);
+                    q.sprite(vec2(i * 300, j * 300), 0, sp1);
+                    q.sprite(vec2(i * 350, j * 320), 0, sp2);
                 }
             }
 
             for j in 0..H/10{
-                q.draw_line(pos(0, j*10), pos(W, j*10), 0);
+                q.line(vec2(0, j*10), vec2(W, j*10), 1);
             }
             for i in 0..W/10{
-                q.draw_line(pos(i*10, 0), pos(i*10, H), 0);
+                q.line(vec2(i*10, 0), vec2(i*10, H), 1);
             }
-            q.draw_line(pos(10, 10), pos(W-10, H-10), 0);
-            q.draw_line(pos(10, H-10), pos(W-10, 10), 0);
+            q.line(vec2(10, 10), vec2(W-10, H-10), 0).with_color(1.0,0.0,0.0,1.0);
+            q.line(vec2(10, H-10), vec2(W-10, 10), 0).with_color(0.0,1.0,0.0,1.0);
+            q.rect(vec2(W/2,H/2), vec2(20, 20), 0);
         }
         q.done();
 

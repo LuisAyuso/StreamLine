@@ -6,7 +6,6 @@ use std::collections::BTreeMap;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 type TimeSample = (f64, usize);
-
 type SampleHistory = Vec<f32>;
 
 pub struct PerformaceCounters {
@@ -18,6 +17,7 @@ pub struct PerformaceCounters {
     digest_tick: u32,
 }
 
+/// some structure to count events
 impl PerformaceCounters {
     pub fn new() -> PerformaceCounters {
         PerformaceCounters {

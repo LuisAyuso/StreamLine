@@ -1,40 +1,56 @@
+#![feature(test)]
+extern crate test;
+
 extern crate image;
 extern crate find_folder;
 extern crate rect_packer;
 extern crate time;
 
+mod assets;
+pub mod tools;
+pub mod maths;
+
 use image::RgbaImage;
 use std::vec::Vec;
 use std::collections::BTreeMap as Map;
 
-mod assets;
-pub mod tools;
+use maths::Vec2;
 
 pub type AssetsMgrBuilder<'a, BE> = assets::AssetsMgrBuilder<'a, BE>;
 pub type AssetsMgr = assets::AssetsMgr;
 
 pub type PerformaceCounters = tools::PerformaceCounters;
 
-pub struct Pos {
-    pub x: u32,
-    pub y: u32,
-}
-pub fn pos(x: u32, y: u32) -> Pos {
-    Pos { x: x, y: y }
-}
-
 pub type SpriteId = usize;
 pub type Color = [f32; 4];
 
 /// sprite data layout:  offsets and sizes come from the texture atlas
-/// { pos(f32,f32), trg_size(f32, f32), sprite_offset(f32,f32), sprite_size(f32, f32) }
-/// 64 bytes? it is this a nice transient size?
-pub type SpriteLayout = [f32; 8];
+/// { layer u32, pos(f32,f32), trg_size(f32, f32), sprite_offset(f32,f32), sprite_size(f32, f32) }
+pub type SpriteLayout = [f32; 9];
+
+/// sprite data layout:  offsets and sizes come from the texture atlas
+/// { layer u32, pos(f32,f32), size(f32, f32), color(f32,f32,f32, f32) }
+pub type RectLayout = [f32; 9];
 
 /// line data layout:
-/// { src(f32, f32), trg(f32, f32), color(f32,f32,f32,f32) }
+/// { layer u32, src(f32, f32), trg(f32, f32), color(f32,f32,f32,f32) }
 /// for different widths we may need to split them in different queues
-pub type LineLayout = [f32; 8];
+pub type LineLayout = [f32; 9];
+
+/// this trait lets us modify the lines
+pub trait Line{
+    /// change default color for lines
+    fn with_color(&mut self, r: f32, g: f32, b: f32, a: f32);
+}
+
+impl Line for LineLayout{
+    fn with_color(&mut self, r: f32, g: f32, b: f32, a: f32){
+        self[5] = r;
+        self[6] = g;
+        self[7] = b;
+        self[8] = a;
+    }
+}
 
 /// the trait that hides the backend in use
 pub trait StreamLineBackend {
@@ -49,6 +65,7 @@ pub trait StreamLineBackendSurface {
     fn clear(&mut self, color: &Color);
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32);
     fn draw_lines(&mut self, lines: &[LineLayout], width: u32);
+    fn draw_rects(&mut self, rects: &[RectLayout]);
     fn done(self);
 }
 
@@ -65,6 +82,7 @@ pub struct CmdQueue<'a, BE, S>
     assets: &'a AssetsMgr,
     lines: Map<u32, Vec<LineLayout>>,
     sprites: Map<u32, Vec<SpriteLayout>>,
+    rects: Map<u32, Vec<RectLayout>>,
 }
 
 impl<'a, BE, S> CmdQueue<'a, BE, S>
@@ -80,6 +98,7 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
             assets: assets_mgr,
             lines: Map::new(),
             sprites: Map::new(),
+            rects: Map::new(),
         }
     }
 
@@ -88,8 +107,28 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
         self.surface.clear(color);
     }
 
+    /// draw a line between two points
+    pub fn line(&mut self, src: Vec2, dst: Vec2, layer: u32) -> &mut LineLayout{
+        if let None = self.lines.get(&layer) {
+            self.lines.insert(layer, Vec::new());
+        }
+
+        let dim = self.surface.dimensions();
+
+        let list = self.lines.get_mut(&layer).unwrap();
+        let i = list.len();
+        list.push([layer as f32,
+                   (src.x as f32 / (dim.0 / 2.0)) - 1.0, 
+                   (src.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                   (dst.x as f32 / (dim.0 / 2.0)) - 1.0, 
+                   (dst.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                   1.0, 1.0, 1.0, 1.0]);
+
+        &mut list[i]
+    }
+
     /// draw a sprite in a given location
-    pub fn draw_sprite(&mut self, pos: Pos, layer: u32, sprite: SpriteId) {
+    pub fn sprite(&mut self, pos: Vec2, layer: u32, sprite: SpriteId) {
         if let None = self.sprites.get(&layer) {
             self.sprites.insert(layer, Vec::new());
         }
@@ -100,26 +139,32 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
         let (w, h) = self.assets.get_sprite_size(sprite).unwrap();
 
         let list = self.sprites.get_mut(&layer).unwrap();
-        list.push([(pos.x as f32 / (dim.0 / 2.0)) - 1.0,
+        list.push([layer as f32,
+                   (pos.x as f32 / (dim.0 / 2.0)) - 1.0,
                    (pos.y as f32 / (dim.1 / 2.0)) - 1.0, 
                    w * ratio, h, 
                    x, y, w, h]);
     }
 
-    /// draw a line between two points
-    pub fn draw_line(&mut self, src: Pos, dst: Pos, layer: u32) {
-        if let None = self.lines.get(&layer) {
-            self.lines.insert(layer, Vec::new());
+    /// draw a rectangle
+    pub fn rect(&mut self, position: Vec2, dimensions: Vec2, layer: u32) -> &mut RectLayout{
+        if let None = self.rects.get(&layer) {
+            self.rects.insert(layer, Vec::new());
         }
 
         let dim = self.surface.dimensions();
+        let ratio = dim.1 / dim.0;
 
-        let list = self.lines.get_mut(&layer).unwrap();
-        list.push([(src.x as f32 / (dim.0 / 2.0)) - 1.0, 
-                   (src.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                   (dst.x as f32 / (dim.0 / 2.0)) - 1.0, 
-                   (dst.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                   1.0, 1.0, 1.0, 1.0]);
+        let list = self.rects.get_mut(&layer).unwrap();
+        let i = list.len();
+        list.push([layer as f32,
+                   (position.x as f32 / (dim.0 / 2.0)) - 1.0,
+                   (position.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                   dimensions.x as f32 * ratio, 
+                   dimensions.y as f32, 
+                   1.0, 0.0, 1.0, 0.0]);
+
+        &mut list[i]
     }
 
     /// finishes and consummes the queue, issues all the draw calls to the backend
@@ -128,12 +173,16 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
         // get all sprites,
         for layer in self.sprites.keys(){
             let v = self.sprites.get(layer).unwrap();
-            self.surface.draw_sprites(v.as_slice(), 0);
+            self.surface.draw_sprites(v.as_slice(), self.assets.get_atlas());
         }
         // get all lines, orderer by depth and then width
         for layer in self.lines.keys(){
             let v = self.lines.get(layer).unwrap();
             self.surface.draw_lines(v.as_slice(), 1);
+        }
+        for layer in self.rects.keys(){
+            let v = self.rects.get(layer).unwrap();
+            self.surface.draw_rects(v.as_slice());
         }
 
         self.surface.done()
@@ -149,12 +198,15 @@ mod tests {
 
     use super::StreamLineBackendSurface;
     use super::AssetsMgrBuilder;
-    use super::pos;
+    use super::maths::vec2;
     use super::Color;
     use super::SpriteLayout;
     use super::LineLayout;
+    use super::RectLayout;
+    use super::Line;
 
     use image::RgbaImage;
+    use test::Bencher;
 
     struct TestBE;
     impl StreamLineBackend for TestBE {
@@ -172,35 +224,34 @@ mod tests {
         fn clear(&mut self, _color: &Color) {}
         fn draw_sprites(&mut self, _sprites: &[SpriteLayout], _tex: u32) {}
         fn draw_lines(&mut self, _lines: &[LineLayout], _w: u32) {}
+        fn draw_rects(&mut self, _rects: &[RectLayout]) {}
         fn done(self) {}
     }
 
-    #[test]
-    fn construct() {
-
+     #[bench]
+     fn bench_lines(b: &mut Bencher) {
         // get some dummy backend
         let mut be = TestBE;
 
         // phase 1, load assets
         let ass = AssetsMgrBuilder::new(&mut be).build().expect("no problem so far");
-        let surface = be.surface();
 
-        // phase 2, draw
-        let mut q = CmdQueue::new(&mut be, surface, &ass);
-        {
+        b.iter(|| {
+            let surface = be.surface();
+            let mut q = CmdQueue::new(&mut be, surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
-            q.draw_line(pos(0, 0), pos(1, 1), 0);
-            q.draw_line(pos(0, 0), pos(1, 1), 0);
-            q.draw_line(pos(0, 0), pos(1, 1), 0);
-            q.draw_line(pos(0, 0), pos(1, 1), 0);
-        }
-        q.done();
-    }
+            for _ in 0..1000{
+                q.line(vec2(0, 0), vec2(1, 1), 0).with_color(1.0, 1.0, 0.0, 1.0);
+            }
+            q.done();
+        });
+     }
 
-    #[test]
-    fn with_assets() {
+     #[bench]
+     fn bench_sprites(b: &mut Bencher) {
         use std::path::Path;
         use find_folder::Search;
+
         // get some dummy backend
         let mut be = TestBE;
 
@@ -216,14 +267,14 @@ mod tests {
             (mgr.build().expect("everithing allright"), sp)
         };
 
-        let surface = be.surface();
-
-        // phase 2, draw
-        let mut q = CmdQueue::new(&mut be, surface, &ass);
-        {
+        b.iter(|| {
+            let surface = be.surface();
+            let mut q = CmdQueue::new(&mut be, surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
-            q.draw_sprite(pos(0, 0), 0, sp);
-        }
-        q.done();
-    }
+            for _ in 0..1000{
+                q.sprite(vec2(0, 0), 0, sp);
+            }
+            q.done();
+        });
+     }
 }

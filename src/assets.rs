@@ -12,9 +12,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::collections::hash_map::DefaultHasher;
 
-use std::path::Path;
-use std::fs::File;
-
 use rect_packer;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -80,19 +77,24 @@ pub struct AssetsMgrBuilder<'a, BE>
 impl<'a, BE> AssetsMgrBuilder<'a, BE>
     where BE: StreamLineBackend + 'a
 {
+
+    /// create an assets manager builder, to be filled with assets and then
+    /// locked for use
     pub fn new(be: &'a mut BE) -> AssetsMgrBuilder<'a, BE> {
         AssetsMgrBuilder {
             be: be,
             to_include: Vec::new(),
         }
     }
-
+    
+    /// adds one file into the assets set
     pub fn add_sprite(&mut self, path: &PathBuf) -> SpriteId {
         let id = self.to_include.len();
         self.to_include.push(path.clone());
         id
     }
 
+    /// creates the assets manager object, with all the submitted images
     pub fn build(self) -> Result<AssetsMgr, AssetsMgrError> {
 
         // TODO: cache the results
@@ -134,11 +136,8 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
                            w: frame.width as f32 / dim.0,
                            h: frame.height as f32 / dim.1,
                        });
-            println!("img{} {:?}", i, frame);
             int_map.insert(i, frame);
         }
-
-        println!("Dimensions : {:?}", dim);
 
         let atlas = gen_atlas(dim, &int_map, &images);
 
@@ -166,17 +165,24 @@ pub struct AssetsMgr {
 }
 
 impl AssetsMgr {
+
+    /// get location in the atlas for a given sprite
     pub fn get_sprite_offset(&self, id: SpriteId) -> Option<(f32, f32)> {
         if let Some(rect) = self.sprite_locations.get(&id) {
             return Some((rect.x, rect.y));
         }
         None
     }
+    /// get size of a sprite
     pub fn get_sprite_size(&self, id: SpriteId) -> Option<(f32, f32)> {
         if let Some(rect) = self.sprite_locations.get(&id) {
             return Some((rect.w, rect.h));
         }
         None
+    }
+    /// returns the atlas texture identifier as regisitered in the backend
+    pub fn get_atlas(&self) -> u32{
+        self.tex
     }
 }
 
@@ -185,9 +191,7 @@ mod tests {
 
     use super::*;
     use super::StreamLineBackend;
-
     use image::RgbaImage;
-
 
     struct TestBE;
     impl StreamLineBackend for TestBE {
