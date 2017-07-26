@@ -11,15 +11,12 @@ use streamline::CmdQueue;
 // modifiers
 use streamline::Colorize;
 use streamline::Contour;
-
 use streamline::maths::vec2;
+use streamline::tools::loop_with_report;
 
 use streamline_glium_be::GliumBackend;
 
-use streamline::tools::loop_with_report;
-
 use std::path::Path;
-
 
 const W: u32 = 1500;
 const H: u32 = 1500;
@@ -56,13 +53,11 @@ fn main() {
 
         // ~~~~~~~~~~ drawing ~~~~~~~~~~~~~~~~
         let surface = be.surface();
-        let mut q = CmdQueue::new(&mut be, surface, &ass);
+        let mut q = CmdQueue::new(surface, &ass);
         {
             q.clear(&[0.4f32, 0.2, 0.1, 1.0]);
 
-            q.line(vec2(0,0), vec2(10,10), 3);
-            q.line(vec2(0,0), vec2(100,100), 1);
-
+            // sprites grid
             for i in 0..5{
                 for j in 0..5{
                     q.sprite(vec2(i * 300, j * 300), 1, sp1);
@@ -70,20 +65,20 @@ fn main() {
                 }
             }
 
+            // line grid,  just behind the sprites
             for j in 0..H/10{
-                q.line(vec2(0, j*10), vec2(W, j*10), 1);
+                q.line(vec2(0, j*10), vec2(W, j*10), 1, 1);
             }
             for i in 0..W/10{
-                q.line(vec2(i*10, 0), vec2(i*10, H), 1);
+                q.line(vec2(i*10, 0), vec2(i*10, H), 1, 1);
             }
 
-            q.line(vec2(10, 10), vec2(W-10, H-10), 0).with_color(1.0,0.0,0.0,1.0);
-            q.line(vec2(10, H-10), vec2(W-10, 10), 0).with_color(0.0,1.0,0.0,1.0);
+            q.line(vec2(10, 10), vec2(W-10, H-10), 1, 0).with_color(1.0,0.0,0.0,1.0);
+            q.line(vec2(10, H-10), vec2(W-10, 10), 1, 0).with_color(0.0,1.0,0.0,1.0);
             q.rect(vec2(W/2,H/2), vec2(20, 20), 0);
 
-
             q.rect(vec2(W/2 + 480,H/2 + 480), vec2(80, 80), 0).with_color(0.0,0.0,0.0,1.0);
-            q.rect(vec2(W/2 + 500,H/2 + 500), vec2(40, 40), 0).with_color(0.0,0.6,1.0,1.0).border();
+            q.rect(vec2(W/2 + 500,H/2 + 500), vec2(40, 40), 0).with_color(0.0,0.6,1.0,1.0).with_border(3);
         }
         q.done();
 

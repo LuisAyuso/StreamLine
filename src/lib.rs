@@ -13,9 +13,8 @@ pub mod maths;
 use image::RgbaImage;
 use std::vec::Vec;
 use std::collections::BTreeMap as Map;
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::rc::Rc;
+
+use tools::RcRef;
 
 use maths::Vec2;
 
@@ -43,11 +42,11 @@ pub struct LineLayout (pub [f32; 9]);
 pub struct LayoutTune<T>
 {
     last: usize,
-    lastqueue: Rc<RefCell<Vec<T>>>,
+    lastqueue: RcRef<Vec<T>>,
 
-    lines:   Rc<RefCell<Vec<LineLayout>>>,
-    sprites: Rc<RefCell<Vec<SpriteLayout>>>,
-    rects:   Rc<RefCell<Vec<RectLayout>>>,
+    lines:   RcRef<Map<u32, RcRef<Vec<LineLayout>>>>,
+    _sprites: RcRef<Vec<SpriteLayout>>,
+    _rects:   RcRef<Vec<RectLayout>>,
 }
 
 /// this trait lets us color primitives
@@ -56,9 +55,9 @@ pub trait Colorize{
 }
 
 impl Colorize for LayoutTune<LineLayout>{
-    fn with_color(self, r: f32, g: f32, b: f32, a: f32) -> Self{
+    fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self{
         {
-            let &mut LineLayout(ref mut elem) = &mut self.lastqueue.borrow_mut()[self.last];
+            let LineLayout(ref mut elem) = self.lastqueue.get_mut()[self.last];
 
             elem[5] = r;
             elem[6] = g;
@@ -70,9 +69,9 @@ impl Colorize for LayoutTune<LineLayout>{
 }
 
 impl Colorize for LayoutTune<RectLayout>{
-    fn with_color(self, r: f32, g: f32, b: f32, a: f32) -> Self{
+    fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self{
         {
-            let &mut RectLayout(ref mut elem) = &mut self.lastqueue.borrow_mut()[self.last];
+            let RectLayout(ref mut elem) = self.lastqueue.get_mut()[self.last];
 
             elem[5] = r;
             elem[6] = g;
@@ -85,14 +84,19 @@ impl Colorize for LayoutTune<RectLayout>{
 
 /// trait to add a countour arround primitives
 pub trait Contour{
-    fn border(self); // -> LayoutTune<LineLayout>;
+    fn with_border(self, width: u32); // -> LayoutTune<LineLayout>;
 }
 
 impl Contour for LayoutTune<RectLayout>{
-    fn border(self) { // -> LayoutTune<LineLayout>{
+    fn with_border(mut self, width: u32) { // -> LayoutTune<LineLayout>{
         {
-            let &mut RectLayout(elem) = &mut self.lastqueue.borrow_mut()[self.last];
-            let lines = &mut self.lines.borrow_mut();
+            let RectLayout(elem) = self.lastqueue.get_mut()[self.last];
+            let mut lines = self.lines.get_mut();
+            if let None = lines.get(&width){
+                lines.insert(width, RcRef::new(Vec::new()));
+            }
+            let lines_list = lines.get_mut(&width).unwrap();
+            let mut lines = lines_list.get_mut();
 
             let layer = elem[0];
             let x = elem[1];
@@ -101,16 +105,16 @@ impl Contour for LayoutTune<RectLayout>{
             let h = elem[4];
 
 
-            lines.push(LineLayout([layer,
+            lines.push( LineLayout([layer,
                                   x,y, x, y+h,
                                   1.0, 1.0, 1.0, 1.0]));
             lines.push(LineLayout([layer,
-                                  x+w,y, x+w, y+h,
-                                  1.0, 1.0, 1.0, 1.0]));
-            lines.push(LineLayout([layer,
-                                  x,y+h, x+w, y+h,
-                                  1.0, 1.0, 1.0, 1.0]));
-            lines.push(LineLayout([layer,
+                                   x+w,y, x+w, y+h,
+                                   1.0, 1.0, 1.0, 1.0]));
+            lines.push( LineLayout([layer,
+                                   x,y+h, x+w, y+h,
+                                   1.0, 1.0, 1.0, 1.0]));
+            lines.push( LineLayout([layer,
                                   x,y, x+w, y,
                                   1.0, 1.0, 1.0, 1.0]));
 
@@ -139,39 +143,29 @@ pub trait StreamLineBackendSurface {
 /// The command queue is a transient object:
 /// we create it on each frame, then we fill it with the drawing instructions,
 /// and finally it is issued and discarded
-pub struct CmdQueue<'a, BE, S>
-    where BE: StreamLineBackend + 'a,
-          S: StreamLineBackendSurface
+pub struct CmdQueue<'a, S>
+    where S: StreamLineBackendSurface
 {
-    be: &'a mut BE,
     surface: S,
     assets: &'a AssetsMgr,
-    lines: Map<u32,   Rc<RefCell<Vec<LineLayout>>>>,
-    sprites: Map<u32, Rc<RefCell<Vec<SpriteLayout>>>>,
-    rects: Map<u32,   Rc<RefCell<Vec<RectLayout>>>>,
+    lines:   RcRef<Map<u32, RcRef<Vec<LineLayout>>>>,
+    sprites: RcRef<Vec<SpriteLayout>>,
+    rects:   RcRef<Vec<RectLayout>>,
 }
 
-impl<'a, BE, S> CmdQueue<'a, BE, S>
-    where BE: StreamLineBackend + 'a,
-          S: StreamLineBackendSurface
+impl<'a, S> CmdQueue<'a, S>
+    where S: StreamLineBackendSurface
 {
     /// create a new queue
-    pub fn new(be: &'a mut BE, surface: S, assets_mgr: &'a AssetsMgr) -> CmdQueue<'a, BE, S> {
+    pub fn new(surface: S, assets_mgr: &'a AssetsMgr) -> CmdQueue<'a, S> {
 
         CmdQueue {
-            be: be,
             surface: surface,
             assets: assets_mgr,
-            lines:   Map::new(),
-            sprites: Map::new(),
-            rects:   Map::new(),
+            lines:   RcRef::new(Map::new()),
+            sprites: RcRef::new(Vec::new()),
+            rects:   RcRef::new(Vec::new()),
         }
-    }
-
-    fn add_layer(&mut self, layer: u32){
-        self.lines.insert(layer, Rc::new(RefCell::new(Vec::new())));
-        self.sprites.insert(layer, Rc::new(RefCell::new(Vec::new())));
-        self.rects.insert(layer, Rc::new(RefCell::new(Vec::new())));
     }
 
     /// clear the current canvas, overwriting anything done before
@@ -180,95 +174,82 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
     }
 
     /// draw a line between two points
-    pub fn line(&mut self, src: Vec2, dst: Vec2, layer: u32) -> LayoutTune<LineLayout>{
-        if let None = self.lines.get(&layer) {
-            self.add_layer(layer);
-        }
+    pub fn line(&mut self, src: Vec2, dst: Vec2, width: u32, layer: u32) -> LayoutTune<LineLayout>{
 
-        let dim = self.surface.dimensions();
-
-        let mut i = 0;
         {
-            let mut list = self.lines.get_mut(&layer).unwrap().borrow_mut();
-            i = list.len();
-            list.push(LineLayout([layer as f32,
-                       (src.x as f32 / (dim.0 / 2.0)) - 1.0, 
-                       (src.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                       (dst.x as f32 / (dim.0 / 2.0)) - 1.0, 
-                       (dst.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                       1.0, 1.0, 1.0, 1.0]));
+         
+            // if we do not have a list for this width we need to create one
+            self.add_width_list(width);
+
+            let dim = self.surface.dimensions();
+
+                let mut map = self.lines.get_mut();
+                let lines_list = map.get_mut(&width).unwrap();
+                let mut list = lines_list.get_mut();
+                list.push(LineLayout([layer as f32 * 1.0,
+                           (src.x as f32 / (dim.0 / 2.0)) - 1.0, 
+                           (src.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                           (dst.x as f32 / (dim.0 / 2.0)) - 1.0, 
+                           (dst.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                           1.0, 1.0, 1.0, 1.0]));
         }
 
         LayoutTune{
-            last: i,
-            lastqueue:  self.lines[&layer].clone(),
+            last: self.lines.get().len()-1,
+            lastqueue:  self.lines.get()[&width].clone(),
 
-            sprites:  self.sprites[&layer].clone(),
-            rects:  self.rects[&layer].clone(),
-            lines:  self.lines[&layer].clone(),
+            lines:  self.lines.clone(),
+            _sprites:  self.sprites.clone(),
+            _rects:  self.rects.clone(),
         }
     }
 
     /// draw a sprite in a given location
     pub fn sprite(&mut self, pos: Vec2, layer: u32, sprite: SpriteId) -> LayoutTune<SpriteLayout>{
-        if let None = self.sprites.get(&layer) {
-            self.add_layer(layer);
-        }
 
         let dim = self.surface.dimensions();
         let ratio = dim.1 / dim.0;
         let (x, y) = self.assets.get_sprite_offset(sprite).unwrap();
         let (w, h) = self.assets.get_sprite_size(sprite).unwrap();
 
-        let mut i = 0;
-        {
-            let mut list = self.sprites.get_mut(&layer).unwrap().borrow_mut();
-            i = list.len();
-            list.push(SpriteLayout([layer as f32,
-                       (pos.x as f32 / (dim.0 / 2.0)) - 1.0,
-                       (pos.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                       w * ratio, h, 
-                       x, y, w, h]));
-        }
+        let i = self.sprites.get().len();
+        self.sprites.get_mut().push(SpriteLayout([layer as f32,
+                   (pos.x as f32 / (dim.0 / 2.0)) - 1.0,
+                   (pos.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                   w * ratio, h, 
+                   x, y, w, h]));
 
         LayoutTune{
             last: i,
-            lastqueue:  self.sprites[&layer].clone(),
+            lastqueue:  self.sprites.clone(),
 
-            sprites:  self.sprites[&layer].clone(),
-            rects:  self.rects[&layer].clone(),
-            lines:  self.lines[&layer].clone(),
+            lines:  self.lines.clone(),
+            _sprites:  self.sprites.clone(),
+            _rects:  self.rects.clone(),
         }
     }
 
     /// draw a rectangle
     pub fn rect(&mut self, position: Vec2, dimensions: Vec2, layer: u32) -> LayoutTune<RectLayout>{
-        if let None = self.rects.get(&layer) {
-            self.add_layer(layer);
-        }
 
         let dim = self.surface.dimensions();
         let ratio = dim.1 / dim.0;
 
-        let mut i = 0;
-        {
-            let mut list = self.rects.get_mut(&layer).unwrap().borrow_mut();
-            i = list.len();
-            list.push(RectLayout([layer as f32,
-                       (position.x as f32 / (dim.0 / 2.0)) - 1.0,
-                       (position.y as f32 / (dim.1 / 2.0)) - 1.0, 
-                       (dimensions.x as f32 / (dim.0 / 2.0)) * ratio, 
-                       (dimensions.y as f32 / (dim.1 / 2.0)),
-                       1.0, 0.0, 1.0, 0.0]));
-        }
+        let i = self.rects.get().len();
+        self.rects.get_mut().push(RectLayout([layer as f32,
+                   (position.x as f32 / (dim.0 / 2.0)) - 1.0,
+                   (position.y as f32 / (dim.1 / 2.0)) - 1.0, 
+                   (dimensions.x as f32 / (dim.0 / 2.0)) * ratio, 
+                   (dimensions.y as f32 / (dim.1 / 2.0)),
+                   1.0, 0.0, 1.0, 0.0]));
 
         LayoutTune{
             last: i,
-            lastqueue:  self.rects[&layer].clone(),
+            lastqueue:  self.rects.clone(),
 
-            sprites:  self.sprites[&layer].clone(),
-            rects:  self.rects[&layer].clone(),
-            lines:  self.lines[&layer].clone(),
+            lines:  self.lines.clone(),
+            _sprites:  self.sprites.clone(),
+            _rects:  self.rects.clone(),
         }
     }
 
@@ -276,22 +257,32 @@ impl<'a, BE, S> CmdQueue<'a, BE, S>
     pub fn done(mut self) {
 
         // get all lines, orderer by depth and then width
-        for layer in self.lines.keys(){
-            let v = self.lines.get(layer).unwrap();
-            self.surface.draw_lines(v.borrow().as_slice(), 1);
+        for (width, line) in self.lines.get().iter(){
+            //let v = self.lines.get(layer).unwrap();
+            self.surface.draw_lines(line.get().as_slice(), *width);
         }
         // get all sprites,
-        for layer in self.sprites.keys(){
-            let v = self.sprites.get(layer).unwrap();
-            self.surface.draw_sprites(v.borrow().as_slice(), self.assets.get_atlas());
-        }
+        self.surface.draw_sprites(self.sprites.get().as_slice(), self.assets.get_atlas());
         // rectagles
-        for layer in self.rects.keys(){
-            let v = self.rects.get(layer).unwrap();
-            self.surface.draw_rects(v.borrow().as_slice());
-        }
+        self.surface.draw_rects(self.rects.get().as_slice());
 
         self.surface.done()
+    }
+
+
+    // if we do not have a list for this width we need to create one
+    fn add_width_list(&mut self, width: u32){
+
+        let mut create = false;
+        // keep lifetimes in order
+        {
+            if let None = self.lines.get().get(&width){
+                create = true;
+            }
+        }
+        if create{
+                self.lines.get_mut().insert(width, RcRef::new(Vec::new()));
+        }
     }
 }
 
@@ -345,10 +336,10 @@ mod tests {
 
         b.iter(|| {
             let surface = be.surface();
-            let mut q = CmdQueue::new(&mut be, surface, &ass);
+            let mut q = CmdQueue::new(surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
             for _ in 0..1000{
-                q.line(vec2(0, 0), vec2(1, 1), 0).with_color(1.0, 1.0, 0.0, 1.0);
+                q.line(vec2(0, 0), vec2(1, 1), 1, 0).with_color(1.0, 1.0, 0.0, 1.0);
             }
             q.done();
         });
@@ -376,7 +367,7 @@ mod tests {
 
         b.iter(|| {
             let surface = be.surface();
-            let mut q = CmdQueue::new(&mut be, surface, &ass);
+            let mut q = CmdQueue::new(surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
             for _ in 0..1000{
                 q.sprite(vec2(0, 0), 0, sp);

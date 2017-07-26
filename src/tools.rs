@@ -1,8 +1,5 @@
 use time;
 
-use std::vec::*;
-use std::collections::BTreeMap;
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pub struct PerformaceCounters {
     samples: usize,
@@ -57,5 +54,64 @@ pub fn loop_with_report<'a, F: FnMut(f64)>(mut body: F, x: u32) {
             println!("fps: {} ", pc.get_fps());
             pc.reset();
         }
+    }
+}
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::cell::{Ref, RefMut};
+use std::clone::Clone;
+
+pub struct RcRef<T>(Rc<RefCell<T>>);
+
+impl<T> RcRef<T> {      
+    pub fn new(value: T) -> RcRef<T> {
+         RcRef(Rc::new(RefCell::new(value)))
+    }
+    pub fn get(&self) -> Ref<T>{
+        let &RcRef(ref rc) = self;
+        rc.borrow()
+    }
+
+    pub fn get_mut(&mut self) -> RefMut<T>{
+        let &mut RcRef(ref rc) = self;
+        rc.borrow_mut()
+    }
+}
+
+impl<T> Clone for RcRef<T>{
+    fn clone(&self) -> Self{
+        let &RcRef(ref rc) = self;
+        RcRef(rc.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct NonCopiable{
+        v: u32,
+    }
+
+    #[test]
+    fn rcref() {
+
+        let v = NonCopiable{v: 101};
+
+        let a = RcRef::new(v);
+        assert!(a.get().v == 101);
+        {
+            let mut b = a.clone();
+            assert!(b.get().v == 101);
+            b.get_mut().v = 202;
+            assert!(b.get().v == 202);
+
+        }
+        assert!(a.get().v == 202);
+
+
     }
 }
