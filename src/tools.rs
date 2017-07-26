@@ -1,6 +1,6 @@
 use time;
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pub struct PerformaceCounters {
     samples: usize,
     acum_time: f64,
@@ -56,7 +56,7 @@ pub fn loop_with_report<'a, F: FnMut(f64)>(mut body: F, x: u32) {
         }
     }
 }
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::cell::{Ref, RefMut};
@@ -64,23 +64,23 @@ use std::clone::Clone;
 
 pub struct RcRef<T>(Rc<RefCell<T>>);
 
-impl<T> RcRef<T> {      
+impl<T> RcRef<T> {
     pub fn new(value: T) -> RcRef<T> {
-         RcRef(Rc::new(RefCell::new(value)))
+        RcRef(Rc::new(RefCell::new(value)))
     }
-    pub fn get(&self) -> Ref<T>{
+    pub fn get(&self) -> Ref<T> {
         let &RcRef(ref rc) = self;
         rc.borrow()
     }
 
-    pub fn get_mut(&mut self) -> RefMut<T>{
+    pub fn get_mut(&mut self) -> RefMut<T> {
         let &mut RcRef(ref rc) = self;
         rc.borrow_mut()
     }
 }
 
-impl<T> Clone for RcRef<T>{
-    fn clone(&self) -> Self{
+impl<T> Clone for RcRef<T> {
+    fn clone(&self) -> Self {
         let &RcRef(ref rc) = self;
         RcRef(rc.clone())
     }
@@ -92,14 +92,14 @@ mod tests {
     use super::*;
 
     #[derive(Debug)]
-    struct NonCopiable{
+    struct NonCopiable {
         v: u32,
     }
 
     #[test]
     fn rcref() {
 
-        let v = NonCopiable{v: 101};
+        let v = NonCopiable { v: 101 };
 
         let a = RcRef::new(v);
         assert!(a.get().v == 101);

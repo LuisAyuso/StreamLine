@@ -77,7 +77,6 @@ pub struct AssetsMgrBuilder<'a, BE>
 impl<'a, BE> AssetsMgrBuilder<'a, BE>
     where BE: StreamLineBackend + 'a
 {
-
     /// create an assets manager builder, to be filled with assets and then
     /// locked for use
     pub fn new(be: &'a mut BE) -> AssetsMgrBuilder<'a, BE> {
@@ -86,7 +85,7 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
             to_include: Vec::new(),
         }
     }
-    
+
     /// adds one file into the assets set
     pub fn add_sprite(&mut self, path: &PathBuf) -> SpriteId {
         let id = self.to_include.len();
@@ -149,7 +148,7 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         let tex = self.be.add_texture(atlas);
 
         Ok(AssetsMgr {
-            total_size: dim,
+            _total_size: dim,
             sprite_locations: map,
             tex: tex,
         })
@@ -159,13 +158,12 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
 /// Describes every texture previously registered
 /// All meta data is backed up buy the right backend structure
 pub struct AssetsMgr {
-    total_size: (f32, f32),
+    _total_size: (f32, f32),
     sprite_locations: Map<SpriteId, Rect>,
     tex: u32,
 }
 
 impl AssetsMgr {
-
     /// get location in the atlas for a given sprite
     pub fn get_sprite_offset(&self, id: SpriteId) -> Option<(f32, f32)> {
         if let Some(rect) = self.sprite_locations.get(&id) {
@@ -181,7 +179,7 @@ impl AssetsMgr {
         None
     }
     /// returns the atlas texture identifier as regisitered in the backend
-    pub fn get_atlas(&self) -> u32{
+    pub fn get_atlas(&self) -> u32 {
         self.tex
     }
 }

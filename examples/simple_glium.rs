@@ -84,14 +84,10 @@ fn main() {
 
         // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
         events_loop.poll_events(|event| {
-            match event {
-                glutin::Event::WindowEvent { event, .. } => {
-                    match event {
-                        glutin::WindowEvent::Closed => std::process::exit(0),
-                        _ => (),
+            if let glutin::Event::WindowEvent { event, .. } =  event {
+                    if let glutin::WindowEvent::Closed = event {
+                         std::process::exit(0);
                     }
-                }
-                _ => (),
             };
         });
     }, 3 // 3 seconds refresh
