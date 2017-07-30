@@ -38,6 +38,10 @@ pub struct RectLayout(pub [f32; 9]);
 // { layer u32, src(f32, f32), trg(f32, f32), color(f32,f32,f32,f32) }
 pub struct LineLayout(pub [f32; 9]);
 
+
+/// this struct provides the means to "tune" the primitives after being issued
+/// this struct is not meant to be directly used but instead implements the
+/// traits to colorize, add border, etc... when it proceeds
 pub struct LayoutTune<T> {
     last: usize,
     lastqueue: RcRef<Vec<T>>,
@@ -55,7 +59,8 @@ pub trait Colorize {
 impl Colorize for LayoutTune<LineLayout> {
     fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         {
-            let LineLayout(ref mut elem) = self.lastqueue.get_mut()[self.last];
+            let queue = &mut self.lastqueue.get_mut();
+            let &mut LineLayout(ref mut elem) = queue.get_mut(self.last).unwrap();
 
             elem[5] = r;
             elem[6] = g;
@@ -69,7 +74,8 @@ impl Colorize for LayoutTune<LineLayout> {
 impl Colorize for LayoutTune<RectLayout> {
     fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         {
-            let RectLayout(ref mut elem) = self.lastqueue.get_mut()[self.last];
+            let queue = &mut self.lastqueue.get_mut();
+            let &mut RectLayout(ref mut elem) = queue.get_mut(self.last).unwrap();
 
             elem[5] = r;
             elem[6] = g;
@@ -164,35 +170,38 @@ impl<'a, S> CmdQueue<'a, S>
         self.surface.clear(color);
     }
 
+
     /// draw a line between two points
     pub fn line(&mut self, src: Vec2, dst: Vec2, width: u32, layer: u32) -> LayoutTune<LineLayout> {
 
-        {
+        // if we do not have a list for this width we need to create one
+        self.add_width_list(width);
 
-            // if we do not have a list for this width we need to create one
-            self.add_width_list(width);
+        let dim = self.surface.dimensions();
 
-            let dim = self.surface.dimensions();
+        let lines_map_next = self.lines.clone();
+        let mut lines_map_rc = self.lines.get_mut();
+        let lines_list_rc = lines_map_rc.get_mut(&width).unwrap();
 
-            let mut map = self.lines.get_mut();
-            let lines_list = map.get_mut(&width).unwrap();
-            let mut list = lines_list.get_mut();
-            list.push(LineLayout([layer as f32 * 1.0,
-                                  (src.x as f32 / (dim.0 / 2.0)) - 1.0,
-                                  (src.y as f32 / (dim.1 / 2.0)) - 1.0,
-                                  (dst.x as f32 / (dim.0 / 2.0)) - 1.0,
-                                  (dst.y as f32 / (dim.1 / 2.0)) - 1.0,
-                                  1.0,
-                                  1.0,
-                                  1.0,
-                                  1.0]));
-        }
+        let i = lines_list_rc.get().len();
+
+        let lines_list_next = lines_list_rc.clone();
+        let mut list = lines_list_rc.get_mut();
+        list.push(LineLayout([layer as f32 * 1.0,
+                              (src.x as f32 / (dim.0 / 2.0)) - 1.0,
+                              (src.y as f32 / (dim.1 / 2.0)) - 1.0,
+                              (dst.x as f32 / (dim.0 / 2.0)) - 1.0,
+                              (dst.y as f32 / (dim.1 / 2.0)) - 1.0,
+                              1.0,
+                              1.0,
+                              1.0,
+                              1.0]));
 
         LayoutTune {
-            last: self.lines.get().len() - 1,
-            lastqueue: self.lines.get()[&width].clone(),
+            last: i,
+            lastqueue: lines_list_next,
 
-            lines: self.lines.clone(),
+            lines: lines_map_next,
             _sprites: self.sprites.clone(),
             _rects: self.rects.clone(),
         }

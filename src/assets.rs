@@ -25,7 +25,7 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 
 fn gen_atlas(dim: (f32, f32),
              layout: &Map<SpriteId, rect_packer::Rect>,
-             images: &Vec<DynamicImage>)
+             images: &[DynamicImage])
              -> RgbaImage {
     println!("new atlas:{:?}", dim);
     let mut atlas_image = image::RgbaImage::new(dim.0 as u32, dim.1 as u32);

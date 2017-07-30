@@ -1,6 +1,7 @@
 use time;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#[derive(Default)]
 pub struct PerformaceCounters {
     samples: usize,
     acum_time: f64,
@@ -30,7 +31,7 @@ impl PerformaceCounters {
 
 /// infinite loop with iterations/second reporting every x seconds
 /// it will pass delta time to function body
-pub fn loop_with_report<'a, F: FnMut(f64)>(mut body: F, x: u32) {
+pub fn loop_with_report<F: FnMut(f64)>(mut body: F, x: u32) {
     let mut pc = PerformaceCounters::new();
     if x == 0 {
         loop {
