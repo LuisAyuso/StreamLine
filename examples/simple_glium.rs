@@ -81,7 +81,7 @@ fn main() {
             q.rect(vec2(W/2,H/2), vec2(20, 20), 0).with_color(1.0,0.0,1.0,1.0);
 
             q.rect(vec2(W/2 + 480,H/2 + 480), vec2(80, 80), 0).with_color(1.0,1.0,0.0,1.0);
-            q.rect(vec2(W/2 + 500,H/2 + 500), vec2(40, 40), 0).with_color(0.0,1.0,1.0,1.0).with_border(3);
+            q.rect(vec2(W/2 + 500,H/2 + 500), vec2(40, 40), 1).with_color(0.0,1.0,1.0,1.0).with_border(3);
         }
         q.done();
 
