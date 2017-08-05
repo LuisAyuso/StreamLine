@@ -57,7 +57,8 @@ impl LineDraw {
                          display: &F,
                          frame: &mut glium::Frame,
                          lines: &[LineLayout],
-                         width: u32)
+                         width: u32,
+                         layers: u32)
         where F: glium::backend::Facade
     {
         // TODO:  optimizations can be done before this point, somehow we need to cache the vertex
@@ -75,7 +76,7 @@ impl LineDraw {
 
                 let &LineLayout(l) = instance;
 
-                let depth = l[0];
+                let depth = 1.0 - (l[0] / layers as f32);
 
                 let x1 = l[1];
                 let y1 = l[2];

@@ -83,7 +83,7 @@ impl QuadDraw {
         }
     }
 
-    pub fn draw_tex_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[SpriteLayout], texture: &Texture2d) 
+    pub fn draw_tex_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[SpriteLayout], texture: &Texture2d, layers: u32) 
         where F: glium::backend::Facade
     {
 
@@ -102,7 +102,7 @@ impl QuadDraw {
 
                 let &SpriteLayout(l) = instance;
 
-                let depth = l[0];
+                let depth = 1.0 - (l[0] / layers as f32);
 
                 let x = l[1];
                 let y = l[2];
@@ -170,7 +170,7 @@ impl QuadDraw {
          		&self.tex_program, &uniforms, &params).expect("failed to draw lines");
     }
 
-    pub fn draw_color_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[RectLayout]) 
+    pub fn draw_color_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[RectLayout], layers: u32) 
     where F: glium::backend::Facade
     {
 
@@ -182,8 +182,7 @@ impl QuadDraw {
 
                 let &RectLayout(l) = instance;
 
-
-                let depth = l[0];
+                let depth = 1.0 - (l[0] / layers as f32);
 
                 let x = l[1];
                 let y = l[2];

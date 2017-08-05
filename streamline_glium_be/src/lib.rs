@@ -60,7 +60,7 @@ impl StreamLineBackend for GliumBackend {
         id
     }
 
-    fn surface(&mut self) -> Self::Surface {
+    fn surface(&mut self, layers: u32) -> Self::Surface {
         let line_draw = LineDraw::new(&self.display);
         let quad_draw = QuadDraw::new(&self.display);
         GliumBackendSurface {
@@ -68,6 +68,7 @@ impl StreamLineBackend for GliumBackend {
             line_draw: line_draw,
             quad_draw: quad_draw,
             dimensions: self.dimensions,
+            layers: layers,
             display: self.display.clone(),
             tex_map: self.map.clone(),
         }
@@ -81,6 +82,7 @@ pub struct GliumBackendSurface<F>
     line_draw: LineDraw,
     quad_draw: QuadDraw,
     dimensions: (f32, f32),
+    layers: u32,
     display: F,
     // Todo: find a more sophisticated way
     tex_map: Rc<Map<u32, glium::texture::Texture2d>>,
@@ -100,16 +102,16 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
 
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32) {
         if let Some(tex) = self.tex_map.deref().get(&tex) {
-            self.quad_draw.draw_tex_quads(&self.display, &mut self.frame, sprites, tex);
+            self.quad_draw.draw_tex_quads(&self.display, &mut self.frame, sprites, tex, self.layers);
         }
     }
 
     fn draw_lines(&mut self, lines: &[LineLayout], width: u32) {
-        self.line_draw.draw_lines(&self.display, &mut self.frame, lines, width);
+        self.line_draw.draw_lines(&self.display, &mut self.frame, lines, width, self.layers);
     }
 
     fn draw_rects(&mut self, rects: &[RectLayout]) {
-        self.quad_draw.draw_color_quads(&self.display, &mut self.frame, rects);
+        self.quad_draw.draw_color_quads(&self.display, &mut self.frame, rects, self.layers);
     }
 
     fn done(self) {
@@ -147,7 +149,7 @@ mod tests {
         while !stop && countdown > 0 {
 
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
-            let mut surface = be.surface();
+            let mut surface = be.surface(6);
             surface.clear(&[0.5f32, 0.4, 0.8, 1.0]);
             surface.draw_lines(&[LineLayout([0.0, 0.0, 0.8, 0.8, 0.8, 1.0, 0.0, 0.0, 1.0f32])], 1);
             surface.draw_lines(&[LineLayout([0.0, -0.5, 0.4, 0.4, 0.4, 1.0, 1.0, 0.0, 1.0f32])], 2);
@@ -194,7 +196,7 @@ mod tests {
         while !stop && countdown > 0 {
 
             // ~~~~~~~~~~ raw drawing ~~~~~~~~~~~~~~~~
-            let mut surface = be.surface();
+            let mut surface = be.surface(1);
             surface.clear(&[0.7f32, 0.8, 0.3, 1.0]);
             surface.draw_sprites(&[SpriteLayout([0.0, 0.0, 0.0, h, w, x, y, w, h])], 0);
             surface.draw_sprites(&[SpriteLayout([0.0, -0.5, -0.5, h*0.5, w*0.5, x, y, w, h])], 0);

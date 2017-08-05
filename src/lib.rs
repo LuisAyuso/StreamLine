@@ -123,7 +123,7 @@ impl Contour for LayoutTune<RectLayout> {
 pub trait StreamLineBackend {
     type Surface;
     fn add_texture(&mut self, img: RgbaImage) -> u32;
-    fn surface(&mut self) -> Self::Surface;
+    fn surface(&mut self, layers: u32) -> Self::Surface;
 }
 
 /// trait that hides the surface we draw to
