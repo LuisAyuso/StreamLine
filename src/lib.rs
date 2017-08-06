@@ -329,26 +329,36 @@ impl<'a, S> CmdQueue<'a, S>
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 use tools::LayoutHash;
+use std::hash::Hasher;
 use std::mem::transmute;
 
 impl LayoutHash for LineLayout {
-    fn hash(&self) -> u64 {
-        let buff = unsafe { transmute::<LineLayout, [u8; 9 * 4]>(*self) };
-        seahash::hash(&buff)
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        let &LineLayout(slice) = self;
+        for i in slice.iter() {
+            let v = unsafe { transmute::<f32, u32>(*i) };
+            h.write_u32(v);
+        }
     }
 }
 
 impl LayoutHash for SpriteLayout {
-    fn hash(&self) -> u64 {
-        let buff = unsafe { transmute::<SpriteLayout, [u8; 9 * 4]>(*self) };
-        seahash::hash(&buff)
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        let &SpriteLayout(slice) = self;
+        for i in slice.iter() {
+            let v = unsafe { transmute::<f32, u32>(*i) };
+            h.write_u32(v);
+        }
     }
 }
 
 impl LayoutHash for RectLayout {
-    fn hash(&self) -> u64 {
-        let buff = unsafe { transmute::<RectLayout, [u8; 9 * 4]>(*self) };
-        seahash::hash(&buff)
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        let &RectLayout(slice) = self;
+        for i in slice.iter() {
+            let v = unsafe { transmute::<f32, u32>(*i) };
+            h.write_u32(v);
+        }
     }
 }
 
