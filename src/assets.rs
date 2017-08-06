@@ -126,7 +126,9 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         let mut int_map = Map::new();
         for (i, img) in images.iter().enumerate() {
             let (w, h) = img.dimensions();
-            let frame = packer.pack(w as i32, h as i32, false).expect("textures do not fit in map");
+            let frame = packer
+                .pack(w as i32, h as i32, false)
+                .expect("textures do not fit in map");
 
             map.insert(i,
                        Rect {
@@ -148,10 +150,10 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         let tex = self.be.add_texture(atlas);
 
         Ok(AssetsMgr {
-            _total_size: dim,
-            sprite_locations: map,
-            tex: tex,
-        })
+               _total_size: dim,
+               sprite_locations: map,
+               tex: tex,
+           })
     }
 }
 

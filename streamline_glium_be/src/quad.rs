@@ -2,19 +2,21 @@ use glium;
 use glium::Surface;
 use streamline::SpriteLayout;
 use streamline::RectLayout;
+use streamline::tools::RcRef;
+use cache::VbCache;
 
 use std::vec::Vec;
 use glium::texture::Texture2d;
 
 #[derive(Debug, Copy, Clone)]
-struct TexVertex {
+pub struct TexVertex {
     position: [f32; 3],
     coords: [f32; 2],
 }
 implement_vertex!(TexVertex, position, coords);
 
 #[derive(Debug, Copy, Clone)]
-struct ColorVertex {
+pub struct ColorVertex {
     position: [f32; 3],
     color: [f32; 4],
 }
@@ -23,11 +25,13 @@ implement_vertex!(ColorVertex, position, color);
 pub struct QuadDraw {
     tex_program: glium::Program,
     color_program: glium::Program,
+    spr_cache: RcRef<VbCache<TexVertex>>, 
+    rec_cache: RcRef<VbCache<ColorVertex>>,
 }
 
 
 impl QuadDraw {
-    pub fn new<F>(f: &F) -> QuadDraw
+    pub fn new<F>(f: &F, spr_cache: &RcRef<VbCache<TexVertex>>, rec_cache: &RcRef<VbCache<ColorVertex>>)  -> QuadDraw
         where F: glium::backend::Facade
     {
 
@@ -80,6 +84,8 @@ impl QuadDraw {
         QuadDraw { 
             tex_program: tex_program.expect("line shaders do not compile"),
             color_program: color_program.expect("line shaders do not compile"),
+            spr_cache: spr_cache.clone(),
+            rec_cache: rec_cache.clone(),
         }
     }
 
@@ -87,16 +93,10 @@ impl QuadDraw {
         where F: glium::backend::Facade
     {
 
-        // TODO:  optimizations can be done before this point, somehow we need to cache the vertex
-        // list so we do not update it on every frame. maybe this needs to be done at the logic
-        // level and not in the backend, the backend should just do.
-        // The problem is that there is no concept of vertex buffer passed in advance. this is the
-        // first time in execution that we see the vertices data
-
-
         // process lines vector, generate some kind of list, here is where the caching could come handy
-        let vertex_buffer = {
-
+        let mut cache_ptr = self.spr_cache.clone();
+        let mut cache = cache_ptr.get_mut();
+        let vertex_buffer = cache.test(quads, || {
             let mut v = Vec::new();
             for instance in quads.iter() {
 
@@ -144,7 +144,7 @@ impl QuadDraw {
                 //println!("{:?}", v);
             glium::VertexBuffer::new(display, &v)
                 .expect("something bad happen when creating vertex buffer")
-        };
+        });
 
         // some opengl stuff, that we will use as we need
         let uniforms = uniform!(
@@ -164,7 +164,7 @@ impl QuadDraw {
             ..Default::default()
         };
 
-        frame.draw(&vertex_buffer,
+        frame.draw(vertex_buffer,
                 //&self.indices,
         		&glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
          		&self.tex_program, &uniforms, &params).expect("failed to draw lines");
@@ -175,7 +175,9 @@ impl QuadDraw {
     {
 
         // process lines vector, generate some kind of list, here is where the caching could come handy
-        let vertex_buffer = {
+        let mut cache_ptr = self.rec_cache.clone();
+        let mut cache = cache_ptr.get_mut();
+        let vertex_buffer = cache.test(quads, || {
 
             let mut v = Vec::new();
             for instance in quads.iter() {
@@ -224,7 +226,7 @@ impl QuadDraw {
             // println!("{:?}", v);
             glium::VertexBuffer::new(display, &v)
                 .expect("something bad happen when creating vertex buffer")
-        };
+        });
 
         // some opengl stuff, that we will use as we need
         let uniforms = glium::uniforms::EmptyUniforms {};
@@ -239,7 +241,7 @@ impl QuadDraw {
             ..Default::default()
         };
 
-        frame.draw(&vertex_buffer,
+        frame.draw(vertex_buffer,
                   &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                   &self.color_program,
                   &uniforms,

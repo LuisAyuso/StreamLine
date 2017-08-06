@@ -1,25 +1,28 @@
 use glium;
 use glium::Surface;
 use streamline::LineLayout;
+use streamline::tools::RcRef;
+use cache::VbCache;
 
 use std::vec::Vec;
 
 
 #[derive(Debug, Copy, Clone)]
-struct Vertex {
+pub struct LineVertex {
     position: [f32; 3],
     color: [f32; 4],
 }
-implement_vertex!(Vertex, position, color);
+implement_vertex!(LineVertex, position, color);
 
 
 pub struct LineDraw {
     program: glium::Program,
+    vb_cache: RcRef<VbCache<LineVertex>>,
 }
 
 
 impl LineDraw {
-    pub fn new<F>(f: &F) -> LineDraw
+    pub fn new<F>(f: &F, cache: &RcRef<VbCache<LineVertex>>) -> LineDraw
         where F: glium::backend::Facade
     {
 
@@ -50,7 +53,47 @@ impl LineDraw {
                 }
             ",
 		});
-        LineDraw { program: program.expect("line shaders do not compile") }
+        LineDraw { 
+            program: program.expect("line shaders do not compile") ,
+            vb_cache: cache.clone(),
+        }
+    }
+
+    fn create_vb<F>(&mut self,
+                         display: &F,
+                         lines: &[LineLayout],
+                         layers: u32) -> glium::VertexBuffer<LineVertex>
+    where F: glium::backend::Facade{
+        let mut v = Vec::new();
+        for instance in lines.iter() {
+
+            let &LineLayout(l) = instance;
+
+            let depth = 1.0 - (l[0] / layers as f32);
+
+            let x1 = l[1];
+            let y1 = l[2];
+            let x2 = l[3];
+            let y2 = l[4];
+
+            let r = l[5];
+            let g = l[6];
+            let b = l[7];
+            let a = l[8];
+
+            v.push(LineVertex {
+                position: [x1, y1, depth],
+                color: [r,g,b,a],
+            });
+            v.push(LineVertex {
+                position: [x2, y2, depth],
+                color: [r,g,b,a],
+            });
+        }
+
+        // println!("{:?}", v);
+        glium::VertexBuffer::new(display, &v)
+            .expect("something bad happen when creating vertex buffer")
     }
 
     pub fn draw_lines<F>(&mut self,
@@ -61,47 +104,11 @@ impl LineDraw {
                          layers: u32)
         where F: glium::backend::Facade
     {
-        // TODO:  optimizations can be done before this point, somehow we need to cache the vertex
-        // list so we do not update it on every frame. maybe this needs to be done at the logic
-        // level and not in the backend, the backend should just do.
-        // The problem is that there is no concept of vertex buffer passed in advance. this is the
-        // first time in execution that we see the vertices data
-
 
         // process lines vector, generate some kind of list, here is where the caching could come handy
-        let vertex_buffer = {
-
-            let mut v = Vec::new();
-            for instance in lines.iter() {
-
-                let &LineLayout(l) = instance;
-
-                let depth = 1.0 - (l[0] / layers as f32);
-
-                let x1 = l[1];
-                let y1 = l[2];
-                let x2 = l[3];
-                let y2 = l[4];
-
-                let r = l[5];
-                let g = l[6];
-                let b = l[7];
-                let a = l[8];
-
-                v.push(Vertex {
-                    position: [x1, y1, depth],
-                    color: [r,g,b,a],
-                });
-                v.push(Vertex {
-                    position: [x2, y2, depth],
-                    color: [r,g,b,a],
-                });
-            }
-
-            // println!("{:?}", v);
-            glium::VertexBuffer::new(display, &v)
-                .expect("something bad happen when creating vertex buffer")
-        };
+        let mut cache_ptr = self.vb_cache.clone();
+        let mut cache = cache_ptr.get_mut();
+        let vertex_buffer = cache.test(lines, || self.create_vb(display, lines, layers) );
 
         // some opengl stuff, that we will use as we need
         let uniforms = glium::uniforms::EmptyUniforms {};
@@ -117,7 +124,7 @@ impl LineDraw {
             ..Default::default()
         };
 
-        frame.draw(&vertex_buffer,
+        frame.draw(vertex_buffer,
                   &glium::index::NoIndices(glium::index::PrimitiveType::LinesList),
                   &self.program,
                   &uniforms,

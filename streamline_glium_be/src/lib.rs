@@ -5,9 +5,12 @@ extern crate glutin;
 extern crate streamline;
 extern crate image;
 extern crate find_folder;
+extern crate lru;
+extern crate seahash;
 
 mod line;
 mod quad;
+mod cache;
 
 use streamline::StreamLineBackend;
 use streamline::StreamLineBackendSurface;
@@ -15,9 +18,11 @@ use streamline::SpriteLayout;
 use streamline::LineLayout;
 use streamline::RectLayout;
 use streamline::Color;
+use streamline::tools::RcRef;
 
 use line::LineDraw;
 use quad::QuadDraw;
+use cache::VbCache;
 
 use glium::Surface;
 use image::RgbaImage;
@@ -31,6 +36,9 @@ pub struct GliumBackend {
     display: glium::Display,
     dimensions: (f32, f32),
     map: Rc<Map<u32, glium::texture::Texture2d>>,
+    vb_cache: RcRef<VbCache<line::LineVertex>>,
+    sprite_cache: RcRef<VbCache<quad::TexVertex>>,
+    rectangle_cache: RcRef<VbCache<quad::ColorVertex>>,
 }
 
 
@@ -40,6 +48,9 @@ impl GliumBackend {
             display: display,
             dimensions: (dim.0 as f32, dim.1 as f32),
             map: Rc::new(Map::new()),
+            vb_cache: RcRef::new(VbCache::new()),
+            sprite_cache: RcRef::new(VbCache::new()),
+            rectangle_cache: RcRef::new(VbCache::new()),
         }
     }
 }
@@ -61,8 +72,8 @@ impl StreamLineBackend for GliumBackend {
     }
 
     fn surface(&mut self, layers: u32) -> Self::Surface {
-        let line_draw = LineDraw::new(&self.display);
-        let quad_draw = QuadDraw::new(&self.display);
+        let line_draw = LineDraw::new(&self.display, &self.vb_cache);
+        let quad_draw = QuadDraw::new(&self.display, &self.sprite_cache, &self.rectangle_cache);
         GliumBackendSurface {
             frame: self.display.draw(),
             line_draw: line_draw,
@@ -84,7 +95,8 @@ pub struct GliumBackendSurface<F>
     dimensions: (f32, f32),
     layers: u32,
     display: F,
-    // Todo: find a more sophisticated way
+    // TODO: find a more sophisticated way, maybe when we 
+    // get lifetimes in associated types
     tex_map: Rc<Map<u32, glium::texture::Texture2d>>,
 }
 
