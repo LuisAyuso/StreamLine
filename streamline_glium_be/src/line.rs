@@ -22,7 +22,7 @@ pub struct LineDraw {
 
 
 impl LineDraw {
-    pub fn new<F>(f: &F, cache: &RcRef<VbCache<LineVertex>>) -> LineDraw
+    pub fn new<F>(f: &F) -> LineDraw
         where F: glium::backend::Facade
     {
 
@@ -55,7 +55,7 @@ impl LineDraw {
 		});
         LineDraw { 
             program: program.expect("line shaders do not compile") ,
-            vb_cache: cache.clone(),
+            vb_cache: RcRef::new(VbCache::new()),
         }
     }
 
@@ -104,7 +104,6 @@ impl LineDraw {
                          layers: u32)
         where F: glium::backend::Facade
     {
-
         // process lines vector, generate some kind of list, here is where the caching could come handy
         let mut cache_ptr = self.vb_cache.clone();
         let mut cache = cache_ptr.get_mut();

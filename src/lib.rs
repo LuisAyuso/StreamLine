@@ -5,8 +5,6 @@ extern crate image;
 extern crate find_folder;
 extern crate rect_packer;
 extern crate time;
-extern crate ordered_float;
-extern crate seahash;
 
 mod assets;
 pub mod tools;
@@ -333,20 +331,20 @@ use std::hash::Hasher;
 use std::mem::transmute;
 
 impl LayoutHash for LineLayout {
-    fn hash<H: Hasher>(&self, h: &mut H) {
-        let &LineLayout(slice) = self;
-        for i in slice.iter() {
-            let v = unsafe { transmute::<f32, u32>(*i) };
+    fn hash<H: Hasher>(&self, h: &mut H){
+        let &LineLayout(slice)  = self;
+        for i in &slice{
+            let v = unsafe {transmute::<f32, u32>(*i)};
             h.write_u32(v);
         }
     }
 }
 
 impl LayoutHash for SpriteLayout {
-    fn hash<H: Hasher>(&self, h: &mut H) {
-        let &SpriteLayout(slice) = self;
-        for i in slice.iter() {
-            let v = unsafe { transmute::<f32, u32>(*i) };
+    fn hash<H: Hasher>(&self, h: &mut H){
+        let &SpriteLayout(slice)  = self;
+        for i in &slice{
+            let v = unsafe {transmute::<f32, u32>(*i)};
             h.write_u32(v);
         }
     }
@@ -354,9 +352,9 @@ impl LayoutHash for SpriteLayout {
 
 impl LayoutHash for RectLayout {
     fn hash<H: Hasher>(&self, h: &mut H) {
-        let &RectLayout(slice) = self;
-        for i in slice.iter() {
-            let v = unsafe { transmute::<f32, u32>(*i) };
+        let &RectLayout(slice)  = self;
+        for i in &slice{
+            let v = unsafe {transmute::<f32, u32>(*i)};
             h.write_u32(v);
         }
     }
@@ -389,7 +387,7 @@ mod tests {
         fn add_texture(&mut self, _img: RgbaImage) -> u32 {
             0
         }
-        fn surface(&mut self) -> Self::Surface {
+        fn surface(&mut self, _:u32) -> Self::Surface {
             TestBESurface {}
         }
     }
@@ -416,7 +414,7 @@ mod tests {
             .expect("no problem so far");
 
         b.iter(|| {
-            let surface = be.surface();
+            let surface = be.surface(0);
             let mut q = CmdQueue::new(surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
             for _ in 0..1000 {
@@ -448,7 +446,7 @@ mod tests {
         };
 
         b.iter(|| {
-            let surface = be.surface();
+            let surface = be.surface(0);
             let mut q = CmdQueue::new(surface, &ass);
             q.clear(&[0.0f32, 0.0, 0.0, 0.0]);
             for _ in 0..1000 {

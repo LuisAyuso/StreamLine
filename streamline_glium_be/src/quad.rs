@@ -31,14 +31,14 @@ pub struct QuadDraw {
 
 
 impl QuadDraw {
-    pub fn new<F>(f: &F, spr_cache: &RcRef<VbCache<TexVertex>>, rec_cache: &RcRef<VbCache<ColorVertex>>)  -> QuadDraw
+    pub fn new<F>(f: &F)  -> QuadDraw
         where F: glium::backend::Facade
     {
 
         let tex_program = program!(f,
-        140 => {
+        410 => {
             vertex: "
-                #version 140
+                #version 410 core
                 in vec3 position;
                 in vec2 coords;
                 out vec2 vs_coords;
@@ -48,13 +48,13 @@ impl QuadDraw {
                 }
             ",
             fragment: "
-                #version 140
+                #version 410 core
                 uniform sampler2D atlas;
                 in vec2  vs_coords;
                 out vec4 fs_color;
                 void main() {
-
-                    fs_color = texture(atlas, (vs_coords.xy));
+                    fs_color = texture(atlas, (vs_coords.xy)); 
+                    //fs_color = texelFetch(atlas, ivec2(vs_coords.xy), 0); 
                 }
             ",
 		});
@@ -84,8 +84,9 @@ impl QuadDraw {
         QuadDraw { 
             tex_program: tex_program.expect("line shaders do not compile"),
             color_program: color_program.expect("line shaders do not compile"),
-            spr_cache: spr_cache.clone(),
-            rec_cache: rec_cache.clone(),
+
+            spr_cache: RcRef::new(VbCache::new()),
+            rec_cache: RcRef::new(VbCache::new()),
         }
     }
 

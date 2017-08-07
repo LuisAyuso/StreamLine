@@ -4,8 +4,8 @@
 
 use lru::LruCache;
 use glium::VertexBuffer;
-use seahash::SeaHasher;
 use std::hash::Hasher;
+use seahash::SeaHasher;
 
 use streamline::tools::LayoutHash;
 
@@ -44,8 +44,7 @@ where T: Copy
 
         if !self.cache.contains(&hash){
             // cache  the thing
-            let val = f();
-            self.cache.put(hash,val);
+            self.cache.put(hash,f());
         }
 
         self.cache.get(&hash).expect("we just added it")

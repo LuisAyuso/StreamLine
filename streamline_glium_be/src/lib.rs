@@ -22,7 +22,6 @@ use streamline::tools::RcRef;
 
 use line::LineDraw;
 use quad::QuadDraw;
-use cache::VbCache;
 
 use glium::Surface;
 use image::RgbaImage;
@@ -32,30 +31,31 @@ use std::rc::Rc;
 use std::ops::Deref;
 
 
-pub struct GliumBackend {
-    display: glium::Display,
+pub struct GliumBackend<'a> {
+    display: &'a glium::Display,
     dimensions: (f32, f32),
     map: Rc<Map<u32, glium::texture::Texture2d>>,
-    vb_cache: RcRef<VbCache<line::LineVertex>>,
-    sprite_cache: RcRef<VbCache<quad::TexVertex>>,
-    rectangle_cache: RcRef<VbCache<quad::ColorVertex>>,
+
+    line_draw: RcRef<LineDraw>,
+    quad_draw: RcRef<QuadDraw>,
 }
 
 
-impl GliumBackend {
-    pub fn new(display: glium::Display, dim: (u32, u32)) -> GliumBackend {
+impl<'a> GliumBackend<'a> {
+    pub fn new(display: &glium::Display, dim: (u32, u32)) -> GliumBackend {
+
         GliumBackend {
             display: display,
             dimensions: (dim.0 as f32, dim.1 as f32),
             map: Rc::new(Map::new()),
-            vb_cache: RcRef::new(VbCache::new()),
-            sprite_cache: RcRef::new(VbCache::new()),
-            rectangle_cache: RcRef::new(VbCache::new()),
+
+            line_draw: RcRef::new(LineDraw::new(display)),
+            quad_draw: RcRef::new(QuadDraw::new(display)),
         }
     }
 }
 
-impl StreamLineBackend for GliumBackend {
+impl<'a> StreamLineBackend for GliumBackend<'a> {
     type Surface = GliumBackendSurface<glium::Display>;
     fn add_texture(&mut self, img: RgbaImage) -> u32 {
 
@@ -65,19 +65,17 @@ impl StreamLineBackend for GliumBackend {
         // no idea why, but if not reversed, it just crashes
         // let tex = glium::texture::RawImage2d::from_raw_rgb(img.into_raw(),dim);
         let tex = glium::texture::RawImage2d::from_raw_rgba_reversed(&img.into_raw(), dim);
-        let tex = glium::texture::Texture2d::new(&self.display, tex).unwrap();
+        let tex = glium::texture::Texture2d::new(self.display, tex).unwrap();
 
         Rc::get_mut(&mut self.map).expect("no other one should be here").insert(id, tex);
         id
     }
 
     fn surface(&mut self, layers: u32) -> Self::Surface {
-        let line_draw = LineDraw::new(&self.display, &self.vb_cache);
-        let quad_draw = QuadDraw::new(&self.display, &self.sprite_cache, &self.rectangle_cache);
         GliumBackendSurface {
             frame: self.display.draw(),
-            line_draw: line_draw,
-            quad_draw: quad_draw,
+            line_draw: self.line_draw.clone(),
+            quad_draw: self.quad_draw.clone(),
             dimensions: self.dimensions,
             layers: layers,
             display: self.display.clone(),
@@ -90,8 +88,8 @@ pub struct GliumBackendSurface<F>
     where F: glium::backend::Facade
 {
     frame: glium::Frame,
-    line_draw: LineDraw,
-    quad_draw: QuadDraw,
+    line_draw: RcRef<LineDraw>,
+    quad_draw: RcRef<QuadDraw>,
     dimensions: (f32, f32),
     layers: u32,
     display: F,
@@ -114,16 +112,16 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
 
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32) {
         if let Some(tex) = self.tex_map.deref().get(&tex) {
-            self.quad_draw.draw_tex_quads(&self.display, &mut self.frame, sprites, tex, self.layers);
+            self.quad_draw.get_mut().draw_tex_quads(&self.display, &mut self.frame, sprites, tex, self.layers);
         }
     }
 
     fn draw_lines(&mut self, lines: &[LineLayout], width: u32) {
-        self.line_draw.draw_lines(&self.display, &mut self.frame, lines, width, self.layers);
+        self.line_draw.get_mut().draw_lines(&self.display, &mut self.frame, lines, width, self.layers);
     }
 
     fn draw_rects(&mut self, rects: &[RectLayout]) {
-        self.quad_draw.draw_color_quads(&self.display, &mut self.frame, rects, self.layers);
+        self.quad_draw.get_mut().draw_color_quads(&self.display, &mut self.frame, rects, self.layers);
     }
 
     fn done(self) {

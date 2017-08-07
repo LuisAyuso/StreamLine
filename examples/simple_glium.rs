@@ -29,7 +29,7 @@ fn main() {
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     // our backend
-    let mut be = GliumBackend::new(display, (W, H));
+    let mut be = GliumBackend::new(&display, (W, H));
 
     let file_location = find_folder::Search::Parents(3)
         .for_folder("assets")

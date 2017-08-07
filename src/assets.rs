@@ -199,7 +199,7 @@ mod tests {
         fn add_texture(&mut self, _img: RgbaImage) -> u32 {
             0
         }
-        fn surface(&mut self) -> Self::Surface {
+        fn surface(&mut self, _: u32) -> Self::Surface {
             TestBESurface {}
         }
     }
