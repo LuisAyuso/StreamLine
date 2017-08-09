@@ -15,6 +15,7 @@ where T: Copy
     cache: LruCache< u64, VertexBuffer<T>>,
 }
 
+#[cfg_attr(feature="profile", flame)]
 fn do_hash<L> (layout: &[L]) -> u64
 where L: LayoutHash{
     let mut h = SeaHasher::new();

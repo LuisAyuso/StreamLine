@@ -96,6 +96,7 @@ impl LineDraw {
             .expect("something bad happen when creating vertex buffer")
     }
 
+    #[cfg_attr(feature="profile", flame)]
     pub fn draw_lines<F>(&mut self,
                          display: &F,
                          frame: &mut glium::Frame,

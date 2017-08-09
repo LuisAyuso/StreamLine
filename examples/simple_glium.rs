@@ -1,8 +1,14 @@
+#![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
+#![cfg_attr(feature="profile", plugin(flamer))]
+
 extern crate glium;
 extern crate glutin;
 extern crate streamline;
 extern crate streamline_glium_be;
 extern crate find_folder;
+
+#[cfg(feature="profile")]
+extern crate flame;
 
 use streamline::StreamLineBackend;
 use streamline::AssetsMgrBuilder;
@@ -25,7 +31,9 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_dimensions(W, H);
-    let context = glutin::ContextBuilder::new().with_depth_buffer(24);
+    let context = glutin::ContextBuilder::new()
+                                          .with_depth_buffer(16)
+                                          .with_multisampling(0);
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     // our backend
@@ -48,6 +56,9 @@ fn main() {
         let sp2 = mgr.add_sprite(&file2);
         (mgr.build().expect("everithing allright"), sp1, sp2)
     };
+
+    #[cfg(feature = "profile")]
+    let mut count = 3;
 
     loop_with_report(&mut |_dt: f64| {
 
@@ -97,6 +108,17 @@ fn main() {
                     }
             };
         });
+
+        #[cfg(feature = "profile")]
+        {
+            count -= 1;
+            if count == 0{
+                 use std::fs::File;
+                 flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
+                 std::process::exit(0);
+            }
+        }
+
     }, 3 // 3 seconds refresh
     );
 }

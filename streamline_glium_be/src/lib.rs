@@ -1,3 +1,5 @@
+#![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
+#![cfg_attr(feature="profile", plugin(flamer))]
 
 #[macro_use]
 extern crate glium;
@@ -7,6 +9,10 @@ extern crate image;
 extern crate find_folder;
 extern crate lru;
 extern crate seahash;
+
+#[cfg(feature="profile")]
+extern crate flame;
+
 
 mod line;
 mod quad;
@@ -107,7 +113,6 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
     fn clear(&mut self, color: &Color) {
         self.frame.clear_color(color[0], color[1], color[2], color[3]);
         self.frame.clear_depth(1.0f32);
-
     }
 
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32) {
@@ -124,6 +129,7 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
         self.quad_draw.get_mut().draw_color_quads(&self.display, &mut self.frame, rects, self.layers);
     }
 
+    #[cfg_attr(feature="profile", flame)]
     fn done(self) {
         self.frame.finish().expect("could not finish frame");
     }

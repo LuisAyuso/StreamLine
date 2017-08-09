@@ -90,6 +90,7 @@ impl QuadDraw {
         }
     }
 
+    #[cfg_attr(feature="profile", flame)]
     pub fn draw_tex_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[SpriteLayout], texture: &Texture2d, layers: u32) 
         where F: glium::backend::Facade
     {
@@ -171,6 +172,7 @@ impl QuadDraw {
          		&self.tex_program, &uniforms, &params).expect("failed to draw lines");
     }
 
+    #[cfg_attr(feature="profile", flame)]
     pub fn draw_color_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[RectLayout], layers: u32) 
     where F: glium::backend::Facade
     {

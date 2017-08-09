@@ -1,3 +1,6 @@
+#![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
+#![cfg_attr(feature="profile", plugin(flamer))]
+
 #![feature(test)]
 extern crate test;
 
@@ -5,6 +8,9 @@ extern crate image;
 extern crate find_folder;
 extern crate rect_packer;
 extern crate time;
+
+#[cfg(feature="profile")]
+extern crate flame;
 
 mod assets;
 pub mod tools;
@@ -200,6 +206,7 @@ impl<'a, S> CmdQueue<'a, S>
 
 
     /// draw a line between two points
+    #[cfg_attr(feature="profile", flame)]
     pub fn line(&mut self, src: Vec2, dst: Vec2, width: u32, layer: u32) -> LayoutTune<LineLayout> {
 
         // if we do not have a list for this width we need to create one
@@ -237,6 +244,7 @@ impl<'a, S> CmdQueue<'a, S>
     }
 
     /// draw a sprite in a given location
+    #[cfg_attr(feature="profile", flame)]
     pub fn sprite(&mut self, pos: Vec2, layer: u32, sprite: SpriteId) -> LayoutTune<SpriteLayout> {
 
         let dim = self.surface.dimensions();
@@ -269,6 +277,7 @@ impl<'a, S> CmdQueue<'a, S>
     }
 
     /// draw a rectangle
+    #[cfg_attr(feature="profile", flame)]
     pub fn rect(&mut self, position: Vec2, dimensions: Vec2, layer: u32) -> LayoutTune<RectLayout> {
 
         let dim = self.surface.dimensions();
