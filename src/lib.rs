@@ -329,11 +329,10 @@ impl<'a, S> CmdQueue<'a, S>
                       layer: layer as f32,
                       pos: ((pos.x as f32 / (dim.0 / 2.0)) - 1.0,
                             (pos.y as f32 / (dim.1 / 2.0)) - 1.0),
-                      color: (0.0, 0.0, 0.0, 0.0),
+                      color: (1.0, 1.0, 1.0, 1.0),
                       font: self.assets.get_font(&font),
                       text: txt.to_string(),
                   });
-
     }
 
     /// finishes and consummes the queue, issues all the draw calls to the backend

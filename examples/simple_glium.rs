@@ -111,26 +111,26 @@ fn main() {
             }
             q.done();
 
-            // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
-            events_loop.poll_events(|event| {
-                if let glutin::Event::WindowEvent { event, .. } =  event {
-                        if let glutin::WindowEvent::Closed = event {
-                             std::process::exit(0);
-                        }
-                };
-            });
-
-            #[cfg(feature = "profile")]
-            {
-                count -= 1;
-                if count == 0{
-                     use std::fs::File;
-                     flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
-                     std::process::exit(0);
-                }
-            }
-
         });
+
+        // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
+        events_loop.poll_events(|event| {
+            if let glutin::Event::WindowEvent { event, .. } =  event {
+                    if let glutin::WindowEvent::Closed = event {
+                         std::process::exit(0);
+                    }
+            };
+        });
+
+        #[cfg(feature = "profile")]
+        {
+            count -= 1;
+            if count == 0{
+                 use std::fs::File;
+                 flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
+                 std::process::exit(0);
+            }
+        }
 
     }, 3 // 3 seconds refresh to print fps counter
     );

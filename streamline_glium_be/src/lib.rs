@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate glium;
 extern crate glutin;
+extern crate cgmath;
 extern crate streamline;
 extern crate image;
 extern crate find_folder;
@@ -39,7 +40,6 @@ use image::RgbaImage;
 use std::collections::BTreeMap as Map;
 use std::rc::Rc;
 use std::ops::Deref;
-
 
 pub struct GliumBackend<'a> {
     display: &'a glium::Display,
@@ -142,7 +142,7 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
     }
 
     fn draw_texts(&mut self, texts: &[TextLayout]){
-        self.text_draw.get_mut().draw_texts(&mut self.frame, texts);
+        self.text_draw.get_mut().draw_texts(&mut self.frame, texts, self.dimensions);
     }
 
     #[cfg_attr(feature="profile", flame)]

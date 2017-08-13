@@ -13,6 +13,7 @@ find_folder = "0.3.0"
 lru = "0.1.4"
 seahash = "3.0.5"
 libc = "*"
+cgmath = "0.15.0"
 
 flame = { version = "*", optional = true }
 flamer = { version = "*", optional = true }

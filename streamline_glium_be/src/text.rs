@@ -4,7 +4,6 @@ use glium;
 use glium::DrawParameters;
 use glium::backend::Context;
 use glium::backend::Facade;
-
 use freetype;
 use libc;
 
@@ -413,7 +412,6 @@ pub fn draw<F, S: ?Sized, M>(text: &TextDisplay<F>, system: &TextSystem, target:
         })
     };
 
-
     let params = {
         use glium::BlendingFunction::Addition;
         use glium::LinearBlendingFactor::*;
@@ -590,6 +588,7 @@ fn get_nearest_po2(mut x: u32) -> u32 {
 }
 
 
+use cgmath;
 use glium;
 
 //use glium::Surface;
@@ -627,21 +626,24 @@ impl TextDraw {
     }
 
     #[cfg_attr(feature="profile", flame)]
-    pub fn draw_texts(&self, 
-                         frame: &mut glium::Frame,
-                     txts: &[TextLayout])
+    pub fn draw_texts(&self, frame: &mut glium::Frame, txts: &[TextLayout], dim: (f32, f32))
         {
     
-        let matrix = [[1.0, 0.0, 0.0, 0.0],
-                      [0.0, 1.0, 0.0, 0.0],
-                      [0.0, 0.0, 1.0, 0.0],
-                      [0.0, 0.0, 0.0, 1.0]];
+        let (w,h) = dim;
 
         for entry in txts.iter(){
 
             let font = &self.fonts[entry.font as usize];
 
             let text = glium_text::TextDisplay::new(&self.sys, font, entry.text.as_str());
+
+            let text_width = text.get_width();
+            let matrix:[[f32; 4]; 4] = cgmath::Matrix4::new(
+                2.0 / text_width, 0.0, 0.0, 0.0,
+                0.0, 2.0 * (w as f32) / (h as f32) / text_width, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                -1.0, -1.0, 0.0, 1.0f32,
+            ).into();
 
             glium_text::draw(&text,
                              &self.sys, 
