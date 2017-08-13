@@ -59,6 +59,7 @@ impl LineDraw {
         }
     }
 
+    #[cfg_attr(feature="profile", flame)]
     fn create_vb<F>(&mut self,
                          display: &F,
                          lines: &[LineLayout],

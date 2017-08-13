@@ -28,25 +28,35 @@ use maths::Vec2;
 pub type AssetsMgrBuilder<'a, BE> = assets::AssetsMgrBuilder<'a, BE>;
 pub type AssetsMgr = assets::AssetsMgr;
 
-pub type PerformaceCounters = tools::PerformaceCounters;
-
 pub type SpriteId = usize;
+pub type FontId = usize;
 pub type Color = [f32; 4];
 
 /// sprite data layout:  offsets and sizes come from the texture atlas
-// { layer u32, pos(f32,f32), trg_size(f32, f32), sprite_offset(f32,f32), sprite_size(f32, f32) }
+// { layer f32, pos(f32,f32), trg_size(f32, f32), sprite_offset(f32,f32), sprite_size(f32, f32) }
 #[derive(PartialEq, Copy, Clone)]
 pub struct SpriteLayout(pub [f32; 9]);
 
 /// sprite data layout:  offsets and sizes come from the texture atlas
-// { layer u32, pos(f32,f32), size(f32, f32), color(f32,f32,f32, f32) }
+// { layer f32, pos(f32,f32), size(f32, f32), color(f32,f32,f32, f32) }
 #[derive(PartialEq, Copy, Clone)]
 pub struct RectLayout(pub [f32; 9]);
 
 /// line data layout:
-// { layer u32, src(f32, f32), trg(f32, f32), color(f32,f32,f32,f32) }
+// { layer f32, src(f32, f32), trg(f32, f32), color(f32,f32,f32,f32) }
 #[derive(PartialEq, Copy, Clone)]
 pub struct LineLayout(pub [f32; 9]);
+
+/// Text data layout
+// { layer f32, pos(f32, f32), color(f32,f32,f32,f32) , String}
+#[derive(PartialEq, Clone)]
+pub struct TextLayout {
+    pub layer: f32,
+    pub pos: (f32, f32),
+    pub color: (f32, f32, f32, f32),
+    pub font: u32,
+    pub text: String,
+}
 
 /// this struct provides the means to "tune" the primitives after being issued
 /// this struct is not meant to be directly used but instead implements the
@@ -157,6 +167,7 @@ impl Contour for LayoutTune<RectLayout> {
 pub trait StreamLineBackend {
     type Surface;
     fn add_texture(&mut self, img: RgbaImage) -> u32;
+    fn add_font<FIO: std::io::Read>(&mut self, font: FIO) -> u32;
     fn surface(&mut self, layers: u32) -> Self::Surface;
 }
 
@@ -167,6 +178,7 @@ pub trait StreamLineBackendSurface {
     fn draw_sprites(&mut self, sprites: &[SpriteLayout], tex: u32);
     fn draw_lines(&mut self, lines: &[LineLayout], width: u32);
     fn draw_rects(&mut self, rects: &[RectLayout]);
+    fn draw_texts(&mut self, _rects: &[TextLayout]);
     fn done(self);
 }
 
@@ -182,6 +194,7 @@ pub struct CmdQueue<'a, S>
     lines: RcRef<Map<u32, RcRef<Vec<LineLayout>>>>,
     sprites: RcRef<Vec<SpriteLayout>>,
     rects: RcRef<Vec<RectLayout>>,
+    texts: RcRef<Vec<TextLayout>>,
 }
 
 impl<'a, S> CmdQueue<'a, S>
@@ -196,6 +209,7 @@ impl<'a, S> CmdQueue<'a, S>
             lines: RcRef::new(Map::new()),
             sprites: RcRef::new(Vec::new()),
             rects: RcRef::new(Vec::new()),
+            texts: RcRef::new(Vec::new()),
         }
     }
 
@@ -307,6 +321,21 @@ impl<'a, S> CmdQueue<'a, S>
         }
     }
 
+    /// draws text
+    pub fn text(&mut self, pos: Vec2, layer: u32, font: FontId, txt: &str) {
+        let mut list = self.texts.get_mut();
+        let dim = self.surface.dimensions();
+        list.push(TextLayout {
+                      layer: layer as f32,
+                      pos: ((pos.x as f32 / (dim.0 / 2.0)) - 1.0,
+                            (pos.y as f32 / (dim.1 / 2.0)) - 1.0),
+                      color: (0.0, 0.0, 0.0, 0.0),
+                      font: self.assets.get_font(&font),
+                      text: txt.to_string(),
+                  });
+
+    }
+
     /// finishes and consummes the queue, issues all the draw calls to the backend
     pub fn done(mut self) {
 
@@ -320,6 +349,9 @@ impl<'a, S> CmdQueue<'a, S>
             .draw_sprites(self.sprites.get().as_slice(), self.assets.get_atlas());
         // rectagles
         self.surface.draw_rects(self.rects.get().as_slice());
+
+        // text
+        self.surface.draw_texts(self.texts.get().as_slice());
 
         self.surface.done()
     }
@@ -340,20 +372,20 @@ use std::hash::Hasher;
 use std::mem::transmute;
 
 impl LayoutHash for LineLayout {
-    fn hash<H: Hasher>(&self, h: &mut H){
-        let &LineLayout(slice)  = self;
-        for i in &slice{
-            let v = unsafe {transmute::<f32, u32>(*i)};
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        let &LineLayout(slice) = self;
+        for i in &slice {
+            let v = unsafe { transmute::<f32, u32>(*i) };
             h.write_u32(v);
         }
     }
 }
 
 impl LayoutHash for SpriteLayout {
-    fn hash<H: Hasher>(&self, h: &mut H){
-        let &SpriteLayout(slice)  = self;
-        for i in &slice{
-            let v = unsafe {transmute::<f32, u32>(*i)};
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        let &SpriteLayout(slice) = self;
+        for i in &slice {
+            let v = unsafe { transmute::<f32, u32>(*i) };
             h.write_u32(v);
         }
     }
@@ -361,9 +393,9 @@ impl LayoutHash for SpriteLayout {
 
 impl LayoutHash for RectLayout {
     fn hash<H: Hasher>(&self, h: &mut H) {
-        let &RectLayout(slice)  = self;
-        for i in &slice{
-            let v = unsafe {transmute::<f32, u32>(*i)};
+        let &RectLayout(slice) = self;
+        for i in &slice {
+            let v = unsafe { transmute::<f32, u32>(*i) };
             h.write_u32(v);
         }
     }
@@ -384,11 +416,14 @@ mod tests {
     use super::SpriteLayout;
     use super::LineLayout;
     use super::RectLayout;
+    use super::TextLayout;
 
     use super::Colorize;
 
     use image::RgbaImage;
     use test::Bencher;
+
+    use std::io;
 
     struct TestBE;
     impl StreamLineBackend for TestBE {
@@ -396,7 +431,10 @@ mod tests {
         fn add_texture(&mut self, _img: RgbaImage) -> u32 {
             0
         }
-        fn surface(&mut self, _:u32) -> Self::Surface {
+        fn add_font<FIO: io::Read>(&mut self, _font: FIO) -> u32 {
+            0
+        }
+        fn surface(&mut self, _: u32) -> Self::Surface {
             TestBESurface {}
         }
     }
@@ -409,6 +447,7 @@ mod tests {
         fn draw_sprites(&mut self, _sprites: &[SpriteLayout], _tex: u32) {}
         fn draw_lines(&mut self, _lines: &[LineLayout], _w: u32) {}
         fn draw_rects(&mut self, _rects: &[RectLayout]) {}
+        fn draw_texts(&mut self, _rects: &[TextLayout]) {}
         fn done(self) {}
     }
 

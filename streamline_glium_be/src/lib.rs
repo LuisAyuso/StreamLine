@@ -9,13 +9,15 @@ extern crate image;
 extern crate find_folder;
 extern crate lru;
 extern crate seahash;
+extern crate libc;
+extern crate freetype_sys as freetype;
 
 #[cfg(feature="profile")]
 extern crate flame;
 
-
 mod line;
 mod quad;
+mod text;
 mod cache;
 
 use streamline::StreamLineBackend;
@@ -23,11 +25,13 @@ use streamline::StreamLineBackendSurface;
 use streamline::SpriteLayout;
 use streamline::LineLayout;
 use streamline::RectLayout;
+use streamline::TextLayout;
 use streamline::Color;
 use streamline::tools::RcRef;
 
 use line::LineDraw;
 use quad::QuadDraw;
+use text::TextDraw;
 
 use glium::Surface;
 use image::RgbaImage;
@@ -44,6 +48,7 @@ pub struct GliumBackend<'a> {
 
     line_draw: RcRef<LineDraw>,
     quad_draw: RcRef<QuadDraw>,
+    text_draw: RcRef<TextDraw>,
 }
 
 
@@ -57,6 +62,7 @@ impl<'a> GliumBackend<'a> {
 
             line_draw: RcRef::new(LineDraw::new(display)),
             quad_draw: RcRef::new(QuadDraw::new(display)),
+            text_draw: RcRef::new(TextDraw::new(display)),
         }
     }
 }
@@ -69,12 +75,16 @@ impl<'a> StreamLineBackend for GliumBackend<'a> {
 
         let dim = img.dimensions();
         // no idea why, but if not reversed, it just crashes
-        // let tex = glium::texture::RawImage2d::from_raw_rgb(img.into_raw(),dim);
-        let tex = glium::texture::RawImage2d::from_raw_rgba_reversed(&img.into_raw(), dim);
-        let tex = glium::texture::Texture2d::new(self.display, tex).unwrap();
+        // let texture = glium::texture::RawImage2d::from_raw_rgb(img.into_raw(),dim);
+        let texture = glium::texture::RawImage2d::from_raw_rgba_reversed(&img.into_raw(), dim);
+        let texture = glium::texture::Texture2d::new(self.display, texture).unwrap();
 
-        Rc::get_mut(&mut self.map).expect("no other one should be here").insert(id, tex);
+        Rc::get_mut(&mut self.map).expect("no other one should be here").insert(id, texture);
         id
+    }
+
+    fn add_font<FIO: std::io::Read>(&mut self, font: FIO) -> u32{
+        return self.text_draw.get_mut().add_font(self.display, font);
     }
 
     fn surface(&mut self, layers: u32) -> Self::Surface {
@@ -82,6 +92,7 @@ impl<'a> StreamLineBackend for GliumBackend<'a> {
             frame: self.display.draw(),
             line_draw: self.line_draw.clone(),
             quad_draw: self.quad_draw.clone(),
+            text_draw: self.text_draw.clone(),
             dimensions: self.dimensions,
             layers: layers,
             display: self.display.clone(),
@@ -96,6 +107,7 @@ pub struct GliumBackendSurface<F>
     frame: glium::Frame,
     line_draw: RcRef<LineDraw>,
     quad_draw: RcRef<QuadDraw>,
+    text_draw: RcRef<TextDraw>,
     dimensions: (f32, f32),
     layers: u32,
     display: F,
@@ -129,6 +141,10 @@ impl<F> StreamLineBackendSurface for GliumBackendSurface<F>
         self.quad_draw.get_mut().draw_color_quads(&self.display, &mut self.frame, rects, self.layers);
     }
 
+    fn draw_texts(&mut self, texts: &[TextLayout]){
+        self.text_draw.get_mut().draw_texts(&mut self.frame, texts);
+    }
+
     #[cfg_attr(feature="profile", flame)]
     fn done(self) {
         self.frame.finish().expect("could not finish frame");
@@ -158,7 +174,7 @@ mod tests {
         let display = glium::Display::new(window, context, &events_loop).unwrap();
 
         // our backend
-        let mut be = GliumBackend::new(display,(1024, 1024));
+        let mut be = GliumBackend::new(&display,(1024, 1024));
 
         let mut stop = false;
         let mut countdown = 40;
@@ -230,7 +246,6 @@ mod tests {
                     _ => (),
                 };
             });
-            // println!("{}", countdown);
             countdown -= 1;
         }
     }

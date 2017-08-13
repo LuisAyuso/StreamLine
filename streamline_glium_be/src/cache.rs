@@ -36,6 +36,7 @@ where T: Copy
 
     /// tests whenever an input is cached already. 
     /// If not, a closure generating the value is given
+    #[cfg_attr(feature="profile", flame)]
     pub fn test<F, L> (&mut self, layout: &[L], mut f: F) -> &VertexBuffer<T>
         where L: LayoutHash,
               F: FnMut()->VertexBuffer<T>

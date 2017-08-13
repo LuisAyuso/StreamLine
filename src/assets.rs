@@ -1,4 +1,5 @@
 use SpriteId;
+use FontId;
 use StreamLineBackend;
 
 use std::path::PathBuf;
@@ -11,6 +12,9 @@ use std::vec::Vec;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::collections::hash_map::DefaultHasher;
+use std::iter::FromIterator;
+
+use std::{fs, io};
 
 use rect_packer;
 
@@ -71,7 +75,8 @@ pub struct AssetsMgrBuilder<'a, BE>
     where BE: StreamLineBackend + 'a
 {
     be: &'a mut BE,
-    to_include: Vec<PathBuf>,
+    sprites_to_include: Vec<PathBuf>,
+    fonts_to_include: Vec<u32>,
 }
 
 impl<'a, BE> AssetsMgrBuilder<'a, BE>
@@ -82,31 +87,39 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
     pub fn new(be: &'a mut BE) -> AssetsMgrBuilder<'a, BE> {
         AssetsMgrBuilder {
             be: be,
-            to_include: Vec::new(),
+            sprites_to_include: Vec::new(),
+            fonts_to_include: Vec::new(),
         }
     }
 
     /// adds one file into the assets set
     pub fn add_sprite(&mut self, path: &PathBuf) -> SpriteId {
-        let id = self.to_include.len();
-        self.to_include.push(path.clone());
+        let id = self.sprites_to_include.len();
+        self.sprites_to_include.push(path.clone());
         id
+    }
+
+    pub fn add_font(&mut self, path: &PathBuf) -> Result<FontId, io::Error> {
+        let i = self.fonts_to_include.len();
+        let font_file = fs::File::open(path)?;
+        self.fonts_to_include.push(self.be.add_font(font_file));
+        Ok(i)
     }
 
     /// creates the assets manager object, with all the submitted images
     pub fn build(self) -> Result<AssetsMgr, AssetsMgrError> {
 
         // TODO: cache the results
-        let _hash = calculate_hash(&self.to_include);
+        let _hash = calculate_hash(&self.sprites_to_include);
 
-        let iter = self.to_include.iter();
+        let iter = self.sprites_to_include.iter();
         // load all images
         let images: Vec<DynamicImage> = iter.map(|path| image::open(path.as_path()))
             .take_while(Result::is_ok)
             .map(Result::unwrap)
             .collect();
 
-        if images.len() != self.to_include.len() {
+        if images.len() != self.sprites_to_include.len() {
             return Err(AssetsMgrError::LoadError);
         }
 
@@ -122,7 +135,7 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         let dim = (width as f32, height as f32);
 
         let mut packer = rect_packer::Packer::new(config);
-        let mut map = Map::new();
+        let mut sprites_loc_map = Map::new();
         let mut int_map = Map::new();
         for (i, img) in images.iter().enumerate() {
             let (w, h) = img.dimensions();
@@ -130,13 +143,13 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
                 .pack(w as i32, h as i32, false)
                 .expect("textures do not fit in map");
 
-            map.insert(i,
-                       Rect {
-                           x: frame.x as f32 / dim.0,
-                           y: 1.0 - frame.y as f32 / dim.1,
-                           w: frame.width as f32 / dim.0,
-                           h: frame.height as f32 / dim.1,
-                       });
+            sprites_loc_map.insert(i,
+                                   Rect {
+                                       x: frame.x as f32 / dim.0,
+                                       y: 1.0 - frame.y as f32 / dim.1,
+                                       w: frame.width as f32 / dim.0,
+                                       h: frame.height as f32 / dim.1,
+                                   });
             int_map.insert(i, frame);
         }
 
@@ -149,9 +162,16 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         // load atlas image on backend
         let tex = self.be.add_texture(atlas);
 
+        // now the fonts
+        let font_map = Map::from_iter(self.fonts_to_include
+                                          .iter()
+                                          .enumerate()
+                                          .map(|kv| (kv.0, *kv.1)));
+
         Ok(AssetsMgr {
                _total_size: dim,
-               sprite_locations: map,
+               sprite_locations: sprites_loc_map,
+               fonts: font_map,
                tex: tex,
            })
     }
@@ -162,6 +182,7 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
 pub struct AssetsMgr {
     _total_size: (f32, f32),
     sprite_locations: Map<SpriteId, Rect>,
+    fonts: Map<FontId, u32>,
     tex: u32,
 }
 
@@ -184,6 +205,10 @@ impl AssetsMgr {
     pub fn get_atlas(&self) -> u32 {
         self.tex
     }
+
+    pub fn get_font(&self, id: &FontId) -> u32 {
+        return self.fonts[id];
+    }
 }
 
 #[cfg(test)]
@@ -193,10 +218,15 @@ mod tests {
     use super::StreamLineBackend;
     use image::RgbaImage;
 
+    use std::io;
+
     struct TestBE;
     impl StreamLineBackend for TestBE {
         type Surface = TestBESurface;
         fn add_texture(&mut self, _img: RgbaImage) -> u32 {
+            0
+        }
+        fn add_font<FIO: io::Read>(&mut self, _font: FIO) -> u32 {
             0
         }
         fn surface(&mut self, _: u32) -> Self::Surface {
@@ -206,7 +236,7 @@ mod tests {
     struct TestBESurface;
 
     #[test]
-    fn load() {
+    fn load_sprites() {
 
         use find_folder::Search;
         use std::path::Path;
@@ -241,6 +271,29 @@ mod tests {
         println!("offset 3: {:?}", mgr.get_sprite_offset(3).unwrap());
         println!("offset 4: {:?}", mgr.get_sprite_offset(4).unwrap());
         assert!(mgr.get_sprite_offset(5).is_none());
+    }
 
+    #[test]
+    fn load_font() {
+
+        use find_folder::Search;
+        use std::path::Path;
+
+        let mut file_location = Search::Parents(3)
+            .for_folder("assets")
+            .expect("some assets folder must exist somewhere");
+        file_location.push(Path::new("OpenSans-Regular.ttf"));
+
+        let mut be = TestBE {};
+
+        let mgr = {
+            let mut builder = AssetsMgrBuilder::new(&mut be);
+            assert!(builder.add_font(&file_location).is_ok());
+            file_location.push(Path::new("nop"));
+            assert!(builder.add_font(&file_location).is_err());
+            builder.build().expect("nothin fancy anymore")
+        };
+
+        assert_eq!(mgr.get_font(&0), 0);
     }
 }

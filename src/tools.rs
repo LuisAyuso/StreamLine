@@ -47,7 +47,7 @@ pub fn loop_with_report<F: FnMut(f64)>(mut body: F, x: u32) {
 
                 #[cfg_attr(feature="profile", flame)]
                 {
-                body(delta);
+                    body(delta);
                 }
 
                 let end_t = time::precise_time_s();

@@ -9,15 +9,16 @@ find_folder = "0.3.0"
 rect_packer = "0.2.0"
 time = "0.1.38"
 
-flame = { version = "^0.1.9", optional = true }
-flamer = { version = "^0.1.4", optional = true }
+flame = { version = "*", optional = true }
+flamer = { version = "*", optional = true }
 
 [dev-dependencies] 
 glium = "0.17.0"
 glutin = "0.9.1"
-streamline_glium_be = { path = "streamline_glium_be", features=["profile"]}
+streamline_glium_be = { path = "streamline_glium_be" }
+freetype-sys = "0.5.0"
 
 
 [features]
 default = []
-profile = ["flame", "flamer"]
+profile = ["flame", "flamer", "streamline_glium_be/profile"]
