@@ -10,9 +10,8 @@ use seahash::SeaHasher;
 use streamline::tools::LayoutHash;
 
 pub struct VbCache<T>
-where T: Copy
 {
-    cache: LruCache< u64, VertexBuffer<T>>,
+    cache: LruCache< u64, T>,
 }
 
 #[cfg_attr(feature="profile", flame)]
@@ -26,7 +25,6 @@ where L: LayoutHash{
 }
 
 impl<T> VbCache<T>
-where T: Copy
 {
     pub fn new() -> VbCache<T>{
         VbCache{
@@ -37,9 +35,9 @@ where T: Copy
     /// tests whenever an input is cached already. 
     /// If not, a closure generating the value is given
     #[cfg_attr(feature="profile", flame)]
-    pub fn test<F, L> (&mut self, layout: &[L], mut f: F) -> &VertexBuffer<T>
+    pub fn test<F, L> (&mut self, layout: &[L], mut f: F) -> &T
         where L: LayoutHash,
-              F: FnMut()->VertexBuffer<T>
+              F: FnMut()->T
     {
 
         let hash = do_hash(layout);

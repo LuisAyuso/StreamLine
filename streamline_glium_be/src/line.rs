@@ -17,7 +17,7 @@ implement_vertex!(LineVertex, position, color);
 
 pub struct LineDraw {
     program: glium::Program,
-    vb_cache: RcRef<VbCache<LineVertex>>,
+    vb_cache: RcRef<VbCache<glium::VertexBuffer<LineVertex>>>,
 }
 
 

@@ -25,8 +25,8 @@ implement_vertex!(ColorVertex, position, color);
 pub struct QuadDraw {
     tex_program: glium::Program,
     color_program: glium::Program,
-    spr_cache: RcRef<VbCache<TexVertex>>, 
-    rec_cache: RcRef<VbCache<ColorVertex>>,
+    spr_cache: RcRef<VbCache<(glium::VertexBuffer<TexVertex>, glium::IndexBuffer<u32>)>>, 
+    rec_cache: RcRef<VbCache<(glium::VertexBuffer<ColorVertex>, glium::IndexBuffer<u32>)>>, 
 }
 
 
@@ -98,8 +98,9 @@ impl QuadDraw {
         // process lines vector, generate some kind of list, here is where the caching could come handy
         let mut cache_ptr = self.spr_cache.clone();
         let mut cache = cache_ptr.get_mut();
-        let vertex_buffer = cache.test(quads, || {
+        let &(ref vertex_buffer, ref index_buffer) = cache.test(quads, || {
             let mut v = Vec::new();
+            let mut i = Vec::new();
             for instance in quads.iter() {
 
                 let &SpriteLayout(l) = instance;
@@ -116,36 +117,40 @@ impl QuadDraw {
                 let t_w = l[7];
                 let t_h = l[8];
 
+                let a = v.len();
                 v.push(TexVertex{
                         position: [x, y, depth],
                         coords: [t_x, t_y-t_h],
                         });
+                let b = v.len();
                 v.push(TexVertex{
                         position: [x+w, y, depth],
                         coords: [t_x + t_w, t_y-t_h],
                         });
+                let c = v.len();
                 v.push(TexVertex{
                         position: [x, y+h, depth],
                         coords: [t_x, t_y],
                         });
 
+                let d = v.len();
                 v.push(TexVertex{
                         position: [x+w, y+h, depth],
                         coords: [t_x + t_w, t_y],
                         });
-                v.push(TexVertex{
-                        position: [x+w, y, depth],
-                        coords: [t_x + t_w, t_y-t_h],
-                        });
-                v.push(TexVertex{
-                        position: [x, y+h, depth],
-                        coords: [t_x, t_y],
-                        });
+
+                i.push(a as u32);
+                i.push(b as u32);
+                i.push(c as u32);
+
+                i.push(d as u32);
+                i.push(b as u32);
+                i.push(c as u32);
             }
 
-                //println!("{:?}", v);
-            glium::VertexBuffer::new(display, &v)
-                .expect("something bad happen when creating vertex buffer")
+            (glium::VertexBuffer::new(display, &v).expect("something bad happen when creating vertex buffer"),
+             glium::IndexBuffer::new(display, glium::index::PrimitiveType::TrianglesList, &i).expect("something wrong with index generation")
+             )
         });
 
         // some opengl stuff, that we will use as we need
@@ -166,9 +171,8 @@ impl QuadDraw {
             ..Default::default()
         };
 
-        frame.draw(vertex_buffer,
-                //&self.indices,
-        		&glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+        frame.draw(vertex_buffer, index_buffer,
+        		//&glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
          		&self.tex_program, &uniforms, &params).expect("failed to draw lines");
     }
 
@@ -176,13 +180,13 @@ impl QuadDraw {
     pub fn draw_color_quads<F>(&mut self, display: &F, frame: &mut glium::Frame, quads: &[RectLayout], layers: u32) 
     where F: glium::backend::Facade
     {
-
         // process lines vector, generate some kind of list, here is where the caching could come handy
         let mut cache_ptr = self.rec_cache.clone();
         let mut cache = cache_ptr.get_mut();
-        let vertex_buffer = cache.test(quads, || {
+        let &(ref vertex_buffer, ref index_buffer) = cache.test(quads, || {
 
             let mut v = Vec::new();
+            let mut i = Vec::new();
             for instance in quads.iter() {
 
                 let &RectLayout(l) = instance;
@@ -199,36 +203,40 @@ impl QuadDraw {
                 let b = l[7];
                 let a = l[8];
 
+                let p1 = v.len();
                 v.push(ColorVertex{
                         position: [x, y, depth],
                         color: [r,g,b,a],
                         });
+                let p2 = v.len();
                 v.push(ColorVertex{
                         position: [x+w, y, depth],
                         color: [r,g,b,a],
                         });
+                let p3 = v.len();
                 v.push(ColorVertex{
                         position: [x, y+h, depth],
                         color: [r,g,b,a],
                         });
 
+                let p4 = v.len();
                 v.push(ColorVertex{
                         position: [x+w, y+h, depth],
                         color: [r,g,b,a],
                         });
-                v.push(ColorVertex{
-                        position: [x+w, y, depth],
-                        color: [r,g,b,a],
-                        });
-                v.push(ColorVertex{
-                        position: [x, y+h, depth],
-                        color: [r,g,b,a],
-                        });
+
+                i.push(p1 as u32);
+                i.push(p2 as u32);
+                i.push(p3 as u32);
+
+                i.push(p4 as u32);
+                i.push(p2 as u32);
+                i.push(p3 as u32);
             }
 
-            // println!("{:?}", v);
-            glium::VertexBuffer::new(display, &v)
-                .expect("something bad happen when creating vertex buffer")
+            (glium::VertexBuffer::new(display, &v).expect("something bad happen when creating vertex buffer"),
+             glium::IndexBuffer::new(display, glium::index::PrimitiveType::TrianglesList, &i).expect("something wrong with index generation")
+             )
         });
 
         // some opengl stuff, that we will use as we need
@@ -244,8 +252,7 @@ impl QuadDraw {
             ..Default::default()
         };
 
-        frame.draw(vertex_buffer,
-                  &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+        frame.draw(vertex_buffer, index_buffer,
                   &self.color_program,
                   &uniforms,
                   &params)
