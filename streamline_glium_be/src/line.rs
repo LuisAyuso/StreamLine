@@ -65,7 +65,7 @@ impl LineDraw {
                          lines: &[LineLayout],
                          layers: u32) -> glium::VertexBuffer<LineVertex>
     where F: glium::backend::Facade{
-        let mut v = Vec::new();
+        let mut v = Vec::with_capacity(lines.len()*2);
         for instance in lines.iter() {
 
             let &LineLayout(l) = instance;

@@ -99,8 +99,8 @@ impl QuadDraw {
         let mut cache_ptr = self.spr_cache.clone();
         let mut cache = cache_ptr.get_mut();
         let &(ref vertex_buffer, ref index_buffer) = cache.test(quads, || {
-            let mut v = Vec::new();
-            let mut i = Vec::new();
+            let mut v = Vec::with_capacity(quads.len()*4);
+            let mut i = Vec::with_capacity(quads.len()*6);
             for instance in quads.iter() {
 
                 let &SpriteLayout(l) = instance;
