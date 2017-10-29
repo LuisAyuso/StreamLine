@@ -35,12 +35,16 @@ pub fn exec_frame<F: FnMut()>(mut body: F) {
 
 fn main() {
 
-    let mut events_loop = glutin::EventsLoop::new();
+    println!("go!");
+
     let window = glutin::WindowBuilder::new().with_dimensions(W, H);
     let context = glutin::ContextBuilder::new()
         .with_depth_buffer(16)
         .with_multisampling(0);
+    let mut events_loop = glutin::EventsLoop::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
+
+    println!("init done!");
 
     // our backend
     let mut be = GliumBackend::new(&display, (W, H));
@@ -106,7 +110,12 @@ fn main() {
                 q.rect(vec2(W/2 + 200, H/2 + 200), vec2(40, 40), 4).with_color(0.0,1.0,1.0,1.0)
                     .with_border(3).with_color(1.0, 0.0, 0.0, 1.0);
 
-                q.text(vec2(W/2 -20, H/2 -10), 3, fnt1, "hello world");
+                q.text(vec2(0 ,0), 3, fnt1, "Zero");
+                q.text(vec2(10 , 10 ), 3, fnt1, "10 10");
+                q.text(vec2(200, 10 ), 3, fnt1, "200 10");
+                q.text(vec2(10, 100 ), 3, fnt1, "10 100");
+                q.text(vec2(W/2 , H/2 ), 3, fnt1, "hello world");
+                //q.text(vec2(0, 0), 13, fnt1, "goodbye");
 
             }
             q.done();
@@ -116,9 +125,11 @@ fn main() {
         // ~~~~~~~~~~~   event ~~~~~~~~~~~~~~~~~
         events_loop.poll_events(|event| {
             if let glutin::Event::WindowEvent { event, .. } =  event {
-                    if let glutin::WindowEvent::Closed = event {
-                         std::process::exit(0);
-                    }
+                match event{
+                    glutin::WindowEvent::Resized(w,h) =>  {},
+                    glutin::WindowEvent::Closed =>  std::process::exit(0),
+                    _ => {},
+                };
             };
         });
 

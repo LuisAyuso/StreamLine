@@ -264,7 +264,7 @@ impl TextSystem {
 #[cfg_attr(feature="profile", flame)]
 impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
     /// Builds a new text display that allows you to draw text.
-    pub fn new(system: &TextSystem, texture: F, text: &str) -> TextDisplay<F> {
+    pub fn new(system: &TextSystem, texture: F, text: &str, dim: (f32, f32)) -> TextDisplay<F> {
         let mut text_display = TextDisplay {
             context: system.context.clone(),
             texture: texture,
@@ -274,7 +274,7 @@ impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
             is_empty: true,
         };
 
-        text_display.set_text(text);
+        text_display.set_text(text, dim);
 
         text_display
     }
@@ -285,7 +285,11 @@ impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
     }
 
     /// Modifies the text on this display.
-    pub fn set_text(&mut self, text: &str) {
+    pub fn set_text(&mut self, text: &str, dim: (f32, f32)) {
+
+        let scale = 0.10;
+        let v_scale = scale;
+
         self.is_empty = true;
         self.total_text_width = 0.0;
         self.vertex_buffer = None;
@@ -324,13 +328,13 @@ impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
             }
 
             //
-            self.total_text_width += infos.left_padding;
+            self.total_text_width += infos.left_padding * scale;
 
             // calculating coords
             let left_coord = self.total_text_width;
-            let right_coord = left_coord + infos.size.0;
-            let top_coord = infos.height_over_line;
-            let bottom_coord = infos.height_over_line - infos.size.1;
+            let right_coord = left_coord + infos.size.0 * scale;
+            let top_coord = infos.height_over_line * v_scale;
+            let bottom_coord = infos.height_over_line * v_scale - infos.size.1 * scale;
 
             // top-left vertex
             vertex_buffer_data.push(VertexFormat {
@@ -360,7 +364,7 @@ impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
             });
 
             // going to next char
-            self.total_text_width = right_coord + infos.right_padding;
+            self.total_text_width = right_coord + infos.right_padding * scale;
         }
 
         if !vertex_buffer_data.len() != 0 {
@@ -376,14 +380,6 @@ impl<F> TextDisplay<F> where F: Deref<Target=FontTexture> {
     }
 }
 
-///
-/// ## About the matrix
-///
-/// The matrix must be column-major post-muliplying (which is the usual way to do in OpenGL).
-///
-/// One unit in height corresponds to a line of text, but the text can go above or under.
-/// The bottom of the line is at `0.0`, the top is at `1.0`.
-/// You need to adapt your matrix by taking these into consideration.
 pub fn draw<F, S: ?Sized, M>(text: &TextDisplay<F>, system: &TextSystem, target: &mut S,
                              matrix: M, color: (f32, f32, f32, f32))
                              where S: glium::Surface, M: Into<[[f32; 4]; 4]>,
@@ -432,8 +428,8 @@ pub fn draw<F, S: ?Sized, M>(text: &TextDisplay<F>, system: &TextSystem, target:
             .. Default::default()
         }
     };
-    target.draw(vertex_buffer, index_buffer, &system.program, &uniforms,
-                &params).unwrap();
+
+    target.draw(vertex_buffer, index_buffer, &system.program, &uniforms, &params).unwrap();
 }
 
 #[cfg_attr(feature="profile", flame)]
@@ -596,10 +592,9 @@ use streamline::TextLayout;
 use std::io;
 use std::vec::Vec;
 
-
 pub struct TextDraw{
     sys: glium_text::TextSystem,
-    fonts: Vec<glium_text::FontTexture>
+    fonts: Vec<glium_text::FontTexture>,
 }
 
 impl TextDraw {
@@ -629,22 +624,16 @@ impl TextDraw {
     pub fn draw_texts(&self, frame: &mut glium::Frame, txts: &[TextLayout], dim: (f32, f32))
         {
     
-        let (w,h) = dim;
-
         for entry in txts.iter(){
 
             let font = &self.fonts[entry.font as usize];
+            let pos = entry.pos;
 
-            let text = glium_text::TextDisplay::new(&self.sys, font, entry.text.as_str());
+            let text = glium_text::TextDisplay::new(&self.sys, font, entry.text.as_str(), dim);
 
-            let text_width = text.get_width();
-            let matrix:[[f32; 4]; 4] = cgmath::Matrix4::new(
-                2.0 / text_width, 0.0, 0.0, 0.0,
-                0.0, 2.0 * (w as f32) / (h as f32) / text_width, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                -1.0, -1.0, 0.0, 1.0f32,
-            ).into();
+            let t = cgmath::Matrix4::from_translation( cgmath::Vector3::new(pos.0, pos.1, 0.0));
 
+            let matrix:[[f32; 4]; 4] = (t).into();
             glium_text::draw(&text,
                              &self.sys, 
                              frame,

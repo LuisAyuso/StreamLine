@@ -139,8 +139,7 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
         let mut int_map = Map::new();
         for (i, img) in images.iter().enumerate() {
             let (w, h) = img.dimensions();
-            let frame = packer
-                .pack(w as i32, h as i32, false)
+            let frame = packer.pack(w as i32, h as i32, false)
                 .expect("textures do not fit in map");
 
             sprites_loc_map.insert(i,
@@ -164,16 +163,16 @@ impl<'a, BE> AssetsMgrBuilder<'a, BE>
 
         // now the fonts
         let font_map = Map::from_iter(self.fonts_to_include
-                                          .iter()
-                                          .enumerate()
-                                          .map(|kv| (kv.0, *kv.1)));
+            .iter()
+            .enumerate()
+            .map(|kv| (kv.0, *kv.1)));
 
         Ok(AssetsMgr {
-               _total_size: dim,
-               sprite_locations: sprites_loc_map,
-               fonts: font_map,
-               tex: tex,
-           })
+            _total_size: dim,
+            sprite_locations: sprites_loc_map,
+            fonts: font_map,
+            tex: tex,
+        })
     }
 }
 

@@ -3,7 +3,6 @@
 /// we will detect reusage and store vb for the next frame
 
 use lru::LruCache;
-use glium::VertexBuffer;
 use std::hash::Hasher;
 use seahash::SeaHasher;
 

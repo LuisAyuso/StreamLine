@@ -136,14 +136,13 @@ impl Contour for LayoutTune<RectLayout> {
         let lines_list_rc = lines_map_rc.get_mut(&width).unwrap();
 
         let i = lines_list_rc.get().len();
-
         let lines_list_next = lines_list_rc.clone();
         let mut list = lines_list_rc.get_mut();
 
         // when using width greater than one, we need to add an extra lenght so we get sharp
         // corners
-        //let hoff = (width as f32 / 2.0 + 1.0) / self.dimensions.0;
-        //let voff = (width as f32 / 2.0 + 1.0) / self.dimensions.1;
+        // let hoff = (width as f32 / 2.0 + 1.0) / self.dimensions.0;
+        // let voff = (width as f32 / 2.0 + 1.0) / self.dimensions.1;
 
         // insert new elements
         list.push(LineLayout([layer, x, y, x, y + w, 1.0, 1.0, 1.0, 1.0]));
@@ -326,13 +325,12 @@ impl<'a, S> CmdQueue<'a, S>
         let mut list = self.texts.get_mut();
         let dim = self.surface.dimensions();
         list.push(TextLayout {
-                      layer: layer as f32,
-                      pos: ((pos.x as f32 / (dim.0 / 2.0)) - 1.0,
-                            (pos.y as f32 / (dim.1 / 2.0)) - 1.0),
-                      color: (1.0, 1.0, 1.0, 1.0),
-                      font: self.assets.get_font(&font),
-                      text: txt.to_string(),
-                  });
+            layer: layer as f32,
+            pos: ((pos.x as f32 / (dim.0 / 2.0)) - 1.0, (pos.y as f32 / (dim.1 / 2.0)) - 1.0),
+            color: (1.0, 1.0, 1.0, 1.0),
+            font: self.assets.get_font(&font),
+            text: txt.to_string(),
+        });
     }
 
     /// finishes and consummes the queue, issues all the draw calls to the backend

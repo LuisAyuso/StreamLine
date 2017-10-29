@@ -88,12 +88,15 @@ impl<'a> StreamLineBackend for GliumBackend<'a> {
     }
 
     fn surface(&mut self, layers: u32) -> Self::Surface {
+
+        let dim = self.display.get_framebuffer_dimensions();
+
         GliumBackendSurface {
             frame: self.display.draw(),
             line_draw: self.line_draw.clone(),
             quad_draw: self.quad_draw.clone(),
             text_draw: self.text_draw.clone(),
-            dimensions: self.dimensions,
+            dimensions: (dim.0 as f32, dim.1 as f32),
             layers: layers,
             display: self.display.clone(),
             tex_map: self.map.clone(),
